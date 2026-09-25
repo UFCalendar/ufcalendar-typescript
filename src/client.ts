@@ -422,7 +422,7 @@ export class FightAPI {
   /**
    * Subscribe to the live WebSocket and receive every frame (Pro plans and up).
    *
-   * The UFC live API: opens `wss://live.ufcalendar.com/v1?key=…`, sends
+   * The live MMA data stream: opens `wss://live.ufcalendar.com/v1?key=…`, sends
    * `{"action":"subscribe","event":<slug>}` and calls `onFrame` with each
    * `LiveFrame` — round, running clock, unofficial in-fight statistics and the
    * action timeline, the same `LiveState` `eventLive()` returns.

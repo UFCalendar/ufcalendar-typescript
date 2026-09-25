@@ -1,6 +1,6 @@
 # @ufcalendar/sdk — TypeScript client for the UFCalendar Fight API
 
-The [UFCalendar Fight API](https://www.ufcalendar.com/developers) is a REST API for MMA data: **UFC, PFL, OKTAGON, BKFC and RIZIN** events, full fight cards, results within minutes, per-fight and round-by-round statistics, complete fighter careers, the only **UFC rankings API with point-in-time history back to 2013**, and the only one serving **judges' scorecards** — every official, every round — plus the **UFCalendar consensus odds line** (current, opening and closing on every plan, line movement on Pro). This package is a dependency-free `fetch` wrapper over it: one method per endpoint, cursor pagination handled for you, ESM + CJS, Node 18+, browsers and edge runtimes.
+The [UFCalendar Fight API](https://www.ufcalendar.com/developers) is a REST API for MMA data: **UFC, PFL, OKTAGON, BKFC and RIZIN** events, full fight cards, results within minutes, per-fight and round-by-round statistics, complete fighter careers, the only **MMA data API with point-in-time UFC rankings history back to 2013**, and the only one serving **judges' scorecards** — every official, every round — plus the **UFCalendar consensus odds line** (current, opening and closing on every plan, line movement on Pro). This package is a dependency-free `fetch` wrapper over it: one method per endpoint, cursor pagination handled for you, ESM + CJS, Node 18+, browsers and edge runtimes.
 
 ```bash
 npm install @ufcalendar/sdk
@@ -97,7 +97,7 @@ book identities are never exposed. Information only, not betting advice.
 
 ## Live stream (UFC fight nights, Pro plans and up)
 
-The **UFC live API**: a WebSocket that pushes the fight-night document the moment it
+The **live stream** of the MMA Fight Data API: a WebSocket that pushes the fight-night document the moment it
 changes — card order and statuses, the bout in progress (round, running clock,
 unofficial in-fight stats, per-round splits, a timestamped action timeline) and the
 last result. It is the streaming half of `eventLive()`, and it is the **UFC live stats
