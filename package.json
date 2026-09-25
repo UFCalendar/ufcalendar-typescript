@@ -1,0 +1,67 @@
+{
+  "name": "@ufcalendar/sdk",
+  "version": "0.6.0",
+  "description": "TypeScript client for the UFCalendar Fight API: UFC, PFL, OKTAGON, BKFC and RIZIN events, fight cards, results, per-round stats, fighter careers, judges' scorecards and UFC rankings history since 2013.",
+  "type": "module",
+  "license": "MIT",
+  "author": "UFCalendar <api@ufcalendar.com>",
+  "homepage": "https://www.ufcalendar.com/developers",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/UFCalendar/ufcalendar-typescript.git"
+  },
+  "bugs": "https://github.com/UFCalendar/ufcalendar-typescript/issues",
+  "keywords": [
+    "ufc",
+    "mma",
+    "api",
+    "ufc-api",
+    "mma-api",
+    "sports-data",
+    "fight-data",
+    "rankings",
+    "bkfc",
+    "pfl",
+    "mcp",
+    "mcp-server",
+    "ufc-mcp",
+    "mma-mcp",
+    "fight-api",
+    "websocket",
+    "live-stream",
+    "ufc-live",
+    "ufc-odds",
+    "consensus-odds"
+  ],
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "gen:types": "openapi-typescript ../../apps/api/openapi.json -o src/schema.d.ts",
+    "build": "pnpm gen:types && tsup",
+    "test": "tsx --test src/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "openapi-typescript": "^7.4.4",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
