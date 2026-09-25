@@ -51,8 +51,6 @@ List endpoints are **async generators** that follow `meta.pagination.next_cursor
 | `event(slug, { include: ['eta', 'odds'] })` / `eventChanges(slug)` | `GET /v1/events/{slug}` / `…/changes` (`eta` = per-bout estimated start; `odds` = each bout's latest consensus line) |
 | `eventWatch(slug, { country })` | `GET /v1/events/{slug}/watch` — how to watch one event, per country: the rights deals for its series merged with the event's own listings |
 | `changes({ org, since, kind, limit })` | `GET /v1/changes` — the card-change feed across every event, newest first (paginated; default last 90 days) |
-| `eventLive(slug)` | `GET /v1/events/{slug}/live` — real-time `LiveState` on fight night (Pro plans and up); the same document streams over `wss://live.ufcalendar.com/v1?key=…` |
-| `subscribeLive(slug, onFrame, opts?)` | the **WebSocket** itself — every `LiveFrame` as it lands (Pro plans and up); returns an unsubscribe function |
 | `fight(id, { include: ['odds'] })` / `fightStats(id)` / `fightRounds(id)` | `GET /v1/fights/{id}` / `…/stats` / `…/rounds` |
 | `fightOdds(id)` / `eventOdds(slug)` | `GET /v1/fights/{id}/odds` / `GET /v1/events/{slug}/odds` — the UFCalendar consensus line: current, opening, closing (settled bouts), movement and `sources` (how many sportsbooks backed each point). Information only, not betting advice |
 | `fightOddsHistory(id, { from, to })` | `GET /v1/fights/{id}/odds/history` — every consensus point, oldest first (async generator; Pro plans and up) |
@@ -94,40 +92,6 @@ for await (const point of api.fightOddsHistory(83379)) {  // Pro plans and up
 
 One anonymised UFCalendar consensus line per corner across the sportsbooks we track;
 book identities are never exposed. Information only, not betting advice.
-
-## Live stream (UFC fight nights, Pro plans and up)
-
-The **live stream** of the MMA Fight Data API: a WebSocket that pushes the fight-night document the moment it
-changes — card order and statuses, the bout in progress (round, running clock,
-unofficial in-fight stats, per-round splits, a timestamped action timeline) and the
-last result. It is the streaming half of `eventLive()`, and it is the **UFC live stats
-API** you want instead of polling.
-
-```ts
-import { FightAPI } from '@ufcalendar/sdk';
-
-const api = new FightAPI(); // UFCAL_API_KEY
-
-const stop = api.subscribeLive(
-  'ufc-331',
-  (frame) => {
-    // frame.type: "snapshot" | "update" | "fight.final" | "event.completed"
-    const cur = frame.data?.current;
-    if (cur) console.log(frame.type, 'R', cur.round, cur.clock_sec);
-  },
-  { until: 'final' },   // close after the first fight.final; omit to run all night
-);
-
-// later
-stop();
-```
-
-`subscribeLive` uses the global `WebSocket` (browser, Node >= 22). On older Node inject
-one: `{ WebSocketImpl: (await import('ws')).default as unknown as typeof WebSocket }`.
-A dropped socket reconnects and re-subscribes once.
-
-Runnable ticker: [`examples/live-ticker.ts`](examples/live-ticker.ts) — ~40 lines that
-print `R2 3:41 · Oliveira 41 vs Makhachev 37 sig. strikes` as the round unfolds.
 
 ## Agents and MCP
 

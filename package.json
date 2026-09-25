@@ -1,6 +1,6 @@
 {
   "name": "@ufcalendar/sdk",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "TypeScript client for the UFCalendar Fight API: UFC, PFL, OKTAGON, BKFC and RIZIN events, fight cards, results, per-round stats, fighter careers, judges' scorecards and UFC rankings history since 2013.",
   "type": "module",
   "license": "MIT",
@@ -26,9 +26,6 @@
     "mcp-server",
     "mma-mcp",
     "fight-api",
-    "websocket",
-    "live-stream",
-    "live-mma-data",
     "mma-odds",
     "consensus-odds"
   ],

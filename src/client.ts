@@ -73,14 +73,9 @@ import type {
   Usage,
   Venue,
   WebhookEndpoint,
-  LiveState,
-  LiveFrame,
 } from './types';
 
 export const DEFAULT_BASE_URL = 'https://api.ufcalendar.com/v1';
-/** The live WebSocket (UFC fight nights, Pro plans and up) — the same document
- * `GET /v1/events/{id}/live` returns, pushed on every change. */
-export const LIVE_WS_URL = 'wss://live.ufcalendar.com/v1';
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export interface FightAPIOptions {
@@ -409,100 +404,6 @@ export class FightAPI {
   ): AsyncGenerator<ChangeFeedEntry, void, void> {
     const { limit, ...params } = opts;
     return this.#paginate<ChangeFeedEntry>('changes', params as Query, { limit });
-  }
-
-  /** Latest real-time LiveState snapshot on fight night (Pro plans and up), or
-   * null when nothing is being streamed. The WebSocket at
-   * wss://live.ufcalendar.com/v1 pushes the same document as it changes — see
-   * `subscribeLive()`. */
-  eventLive(idOrSlug: string | number): Promise<LiveState | null> {
-    return this.get<LiveState | null>(`events/${encodeURIComponent(String(idOrSlug))}/live`);
-  }
-
-  /**
-   * Subscribe to the live WebSocket and receive every frame (Pro plans and up).
-   *
-   * The live MMA data stream: opens `wss://live.ufcalendar.com/v1?key=…`, sends
-   * `{"action":"subscribe","event":<slug>}` and calls `onFrame` with each
-   * `LiveFrame` — round, running clock, unofficial in-fight statistics and the
-   * action timeline, the same `LiveState` `eventLive()` returns.
-   *
-   * ```ts
-   * const stop = api.subscribeLive('ufc-331', (f) => console.log(f.type), { until: 'final' });
-   * ```
-   *
-   * Uses the global `WebSocket` (browser, Node >= 22) unless you inject one
-   * (`ws` on older Node). A dropped socket reconnects and re-subscribes ONCE.
-   *
-   * @returns an unsubscribe function — call it to close the socket for good.
-   */
-  subscribeLive(
-    event: string,
-    onFrame: (frame: LiveFrame) => void,
-    opts: { until?: 'final'; WebSocketImpl?: typeof WebSocket } = {},
-  ): () => void {
-    const Impl = opts.WebSocketImpl ?? (globalThis as { WebSocket?: typeof WebSocket }).WebSocket;
-    if (!Impl) {
-      throw new Error(
-        'subscribeLive() needs a WebSocket: use Node >= 22 (or a browser), or pass ' +
-          "{ WebSocketImpl } — e.g. `import WebSocket from 'ws'`.",
-      );
-    }
-    if (!this.apiKey) {
-      throw new Error(
-        'No API key. The live stream authenticates with ?key=. Keys (and the free ' +
-          '1-day trial) live at https://www.ufcalendar.com/account/api',
-      );
-    }
-    const url = `${LIVE_WS_URL}?key=${encodeURIComponent(this.apiKey)}`;
-    let done = false;
-    let reconnects = 0;
-    let sock: WebSocket | null = null;
-
-    const open = () => {
-      const ws = new Impl(url);
-      sock = ws;
-      ws.onopen = () => {
-        try {
-          ws.send(JSON.stringify({ action: 'subscribe', event }));
-        } catch {
-          /* the close handler reconnects */
-        }
-      };
-      ws.onmessage = (ev: MessageEvent) => {
-        let frame: LiveFrame;
-        try {
-          frame = JSON.parse(typeof ev.data === 'string' ? ev.data : String(ev.data)) as LiveFrame;
-        } catch {
-          return; // a half-frame is not worth killing the night over
-        }
-        if (!frame || typeof frame !== 'object') return;
-        onFrame(frame);
-        if (opts.until === 'final' && frame.type === 'fight.final') {
-          done = true;
-          try {
-            ws.close();
-          } catch {
-            /* already gone */
-          }
-        }
-      };
-      ws.onclose = () => {
-        if (done || reconnects >= 1) return;
-        reconnects += 1;
-        open();
-      };
-    };
-    open();
-
-    return () => {
-      done = true;
-      try {
-        sock?.close();
-      } catch {
-        /* already gone */
-      }
-    };
   }
 
   /* -------------------------------------------------------------- fights */

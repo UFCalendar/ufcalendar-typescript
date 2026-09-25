@@ -849,134 +849,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/events/{idOrSlug}/live": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Live snapshot (Pro+)
-         * @description The latest real-time document for an event on fight night — the same `LiveState` the WebSocket pushes: card order and statuses, the bout in progress (`current`: phase, round, running clock, unofficial totals and per-round stats, referee, a timestamped action timeline), and the last result. `data` is `null` with `meta.live: false` when nothing is being streamed. Poll it at most every few seconds, or connect to the WebSocket in `meta.websocket` (`?key=` on the URL, then send `{"action":"subscribe","event":"<slug>"}`) and receive every change as it lands. UFC only in v1. Requires Pro or higher (403 `tier_required` otherwise).
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /** @description Numeric id or slug of the event. Stale slugs 308-redirect to the canonical URL. */
-                    idOrSlug: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description LiveState or null. The one GET whose `Cache-Control` is `no-store` (a snapshot changes every few seconds on fight night). */
-                200: {
-                    headers: {
-                        /** @description Weak validator over the body, e.g. `W/"GKrimLo826WBqG27jbNFsW2ZHmA"`. Send it back as `If-None-Match` to get a 304. */
-                        ETag?: string;
-                        /** @description Always `private, no-cache`. */
-                        "Cache-Control"?: string;
-                        /** @description Monthly request quota of the plan. */
-                        "X-RateLimit-Limit"?: number;
-                        /** @description Requests left this month. */
-                        "X-RateLimit-Remaining"?: number;
-                        /** @description Unix seconds of the monthly reset. */
-                        "X-RateLimit-Reset"?: number;
-                        /** @description Quote it to support; the same id is in every error body. */
-                        "x-request-id"?: string;
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        /**
-                         * @example {
-                         *       "data": null,
-                         *       "meta": {
-                         *         "live": false,
-                         *         "websocket": "wss://live.ufcalendar.com/v1",
-                         *         "subscribe": {
-                         *           "action": "subscribe",
-                         *           "event": "ufc-320"
-                         *         }
-                         *       }
-                         *     }
-                         */
-                        "application/json": components["schemas"]["EventLiveResponse"];
-                    };
-                };
-                /** @description Not Modified — `If-None-Match` matched the current weak `ETag`. Empty body. */
-                304: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                /** @description The slug is a retired alias (the event or fighter was renamed). Follow `Location` to the canonical URL; the numeric-id form never redirects. */
-                308: {
-                    headers: {
-                        /** @description Canonical `/v1/...` path. */
-                        Location?: string;
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                /** @description Missing/invalid API key (`unauthorized`). */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Requires Pro or above (`tier_required`). */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Not found (`not_found`; staged-org data 404s until the org is promoted). */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Rate limited (`rate_limited`) or monthly quota reached (`quota_exceeded`). Honor `Retry-After`. */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Something broke on our side (`internal_error`). It has been logged under the `request_id`. */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/events/{idOrSlug}/changes": {
         parameters: {
             query?: never;
@@ -8872,35 +8744,6 @@ export interface components {
             /** Format: date-time */
             observed_at: string;
         };
-        /** @description The real-time document the stream worker publishes (the same one the WebSocket pushes). Open-ended by design — `current`, `card[]` and the timeline grow with the feed. Pinned by `mobile/shared/fixtures/live-stream-cases.json`. */
-        LiveState: {
-            /** @description Document version. */
-            v: number;
-            /** @description Publish sequence within one run (restarts count from 1 again — order by `ts`). */
-            seq: number;
-            /** @description Unix milliseconds of this publish. */
-            ts: number;
-            /** @description Content hash; a new document is published only when it changes. */
-            hash: string;
-            /** @description `{id, slug, fmid, name, org, status, source}`. */
-            event: {
-                [key: string]: unknown;
-            };
-            /** @description Bout order and statuses (`upcoming` / `live` / `final`), corners (`a`/`b` with `fighter_id`, `name`, `short`) and results. */
-            card: {
-                [key: string]: unknown;
-            }[];
-            /** @description The bout in the cage: `phase`, `round`, `possible_rounds`, `round_length_sec`, `round_started_at`, `clock_sec`, `official`, `stats` (`a`/`b` totals), `rounds[]`, `timeline[]`. */
-            current?: {
-                [key: string]: unknown;
-            } | null;
-            /** @description The last finished bout: `fight_id`, `winner` (`a`/`b`/null), `method`, `round`, `time`. */
-            last?: {
-                [key: string]: unknown;
-            } | null;
-        } & {
-            [key: string]: unknown;
-        };
         /** @description The one fighter-reference shape every card, fight and search row carries. */
         FighterRef: {
             id: number;
@@ -10814,24 +10657,6 @@ export interface components {
             meta: {
                 pagination: components["schemas"]["CursorPagination"];
                 note: string;
-                /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
-                ignored_params?: string[];
-            };
-        };
-        /** @description `data` is null with `meta.live: false` when nothing is being streamed. */
-        EventLiveResponse: {
-            data: components["schemas"]["LiveState"] | null;
-            meta: {
-                /** @description true only while the event is in progress on the stream. */
-                live: boolean;
-                /** @description `wss://live.ufcalendar.com/v1` — add `?key=<key>`. */
-                websocket: string;
-                subscribe: {
-                    /** @constant */
-                    action: "subscribe";
-                    /** @description The slug to send. */
-                    event: string;
-                };
                 /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
                 ignored_params?: string[];
             };
