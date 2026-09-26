@@ -54,9 +54,6 @@ export interface paths {
                          *           "per_account": 1,
                          *           "start_url": "https://www.ufcalendar.com/account/api?trial=1"
                          *         },
-                         *         "enterprise": {
-                         *           "contact": "api@ufcalendar.com"
-                         *         },
                          *         "mcp": {
                          *           "url": "https://api.ufcalendar.com/mcp",
                          *           "transport": "streamable-http",
@@ -1916,7 +1913,7 @@ export interface paths {
         };
         /**
          * Search completed bouts (filtered)
-         * @description Completed bouts with a winner across the launch promotions, filtered — the one-call answer to "the last title fight to end by knockout" or "every submission win for this fighter". **At least one narrowing filter is required** (`title_only`, `method`, `division`, `fighter`, `winner`, `from`, `to`, `main_events_only`; `org`, `order`, `limit` and `cursor` do not count) — a bare call 400s `filter_required`, because the whole table is the Enterprise bulk snapshot, not a list endpoint. Newest first by default (`order=oldest` reverses it); inside one card the main event comes first, then card order. Up to 25 rows per page and at most 10 pages deep (`page_depth_exceeded` past that — narrow the filters). Each row is the bout (same shape as `/v1/fights/{id}`) plus its `event` (`id`, `slug`, `title`, `org`, `starts_at`); `meta.filters` echoes the filters applied. `fighter`/`winner` take a slug or id (404 when not on the roster).
+         * @description Completed bouts with a winner across the launch promotions, filtered — the one-call answer to "the last title fight to end by knockout" or "every submission win for this fighter". **At least one narrowing filter is required** (`title_only`, `method`, `division`, `fighter`, `winner`, `from`, `to`, `main_events_only`; `org`, `order`, `limit` and `cursor` do not count) — a bare call 400s `filter_required`, because the whole table is not sold as a list or a bulk export on any plan. Newest first by default (`order=oldest` reverses it); inside one card the main event comes first, then card order. Up to 25 rows per page and at most 10 pages deep (`page_depth_exceeded` past that — narrow the filters). Each row is the bout (same shape as `/v1/fights/{id}`) plus its `event` (`id`, `slug`, `title`, `org`, `starts_at`); `meta.filters` echoes the filters applied. `fighter`/`winner` take a slug or id (404 when not on the roster).
          */
         get: {
             parameters: {
@@ -8292,91 +8289,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/bulk/{kind}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Bulk snapshot (Enterprise only)
-         * @description Enterprise only — the full dataset is licensed, not self-serve; contact api@ufcalendar.com. Downloads the full launch-scope dataset as gzipped JSON: `events.json.gz`, `fights.json.gz`, `fighters.json.gz` or `odds-closing.json.gz` (the closing-line archive: one row per priced, settled bout since 2012 with `fight_id`, `event_id`, `event_slug`, `org`, `starts_at`, `fighter_a_id`, `fighter_b_id`, `winner_fighter_id`, `opening_a` / `opening_b` / `opening_at`, `closing_a` / `closing_b` / `closing_at` as American moneylines, and `sources`; UFCalendar consensus only, no book identities, information only). Responds 302 to a presigned URL; snapshots regenerate at most every 6 hours. One request per download (the redirect is free).
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    kind: "events.json.gz" | "fights.json.gz" | "fighters.json.gz" | "odds-closing.json.gz";
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Redirect to a time-limited download URL */
-                302: {
-                    headers: {
-                        Location?: string;
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                /** @description Missing/invalid API key (`unauthorized`). */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Requires an Enterprise agreement (`tier_required`). */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Not found (`not_found`; staged-org data 404s until the org is promoted). */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Rate limited (`rate_limited`) or monthly quota reached (`quota_exceeded`). Honor `Retry-After`. */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Something broke on our side (`internal_error`). It has been logged under the `request_id`. */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/usage": {
         parameters: {
             query?: never;
@@ -8549,7 +8461,7 @@ export interface components {
          * @description Plan tier.
          * @enum {string}
          */
-        Tier: "trial" | "hobby" | "pro" | "business" | "enterprise";
+        Tier: "trial" | "hobby" | "pro" | "business";
         /**
          * @description Webhook event types.
          * @enum {string}
@@ -10474,9 +10386,8 @@ export interface components {
         Plan: {
             key: components["schemas"]["Tier"];
             name: string;
-            /** @description Null for Enterprise (contract). */
-            price_monthly_usd: number | null;
-            price_yearly_usd: number | null;
+            price_monthly_usd: number;
+            price_yearly_usd: number;
             requests_per_month: number;
             rpm: number;
             key_limit: number;
@@ -10492,9 +10403,6 @@ export interface components {
                 card_required: boolean;
                 per_account: number;
                 start_url: string;
-            };
-            enterprise: {
-                contact: string;
             };
             mcp: {
                 url: string;

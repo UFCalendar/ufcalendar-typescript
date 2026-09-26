@@ -992,8 +992,8 @@ export interface YearStats {
 export interface Plan {
   key: string;
   name: string;
-  price_monthly_usd: number | null;
-  price_yearly_usd: number | null;
+  price_monthly_usd: number;
+  price_yearly_usd: number;
   requests_per_month: number;
   rpm: number;
   key_limit: number;
@@ -1011,7 +1011,6 @@ export interface Plans {
     per_account: number;
     start_url: string;
   };
-  enterprise: { contact: string };
   mcp: {
     url: string;
     transport: string;
