@@ -1,12 +1,22 @@
-# @ufcalendar/sdk — TypeScript client for the UFCalendar Fight API
+# @ufcalendar/sdk — MMA Fight Data API client for TypeScript
 
-The [UFCalendar Fight API](https://www.ufcalendar.com/developers) is a REST API for MMA data: **UFC, PFL, OKTAGON, BKFC and RIZIN** events, full fight cards, results within minutes, per-fight and round-by-round statistics, complete fighter careers, the only **MMA data API with point-in-time UFC rankings history back to 2013**, and the only one serving **judges' scorecards** — every official, every round — plus the **UFCalendar consensus odds line** (current, opening and closing on every plan, line movement on Pro). This package is a dependency-free `fetch` wrapper over it: one method per endpoint, cursor pagination handled for you, ESM + CJS, Node 18+, browsers and edge runtimes.
+UFC, PFL, OKTAGON, BKFC and RIZIN events, fight stats, results, rankings history and judges' scorecards from one typed client.
+
+The [MMA Fight Data API by UFCalendar](https://www.ufcalendar.com/developers) (the UFCalendar Fight API) is a REST API for MMA data: **UFC, PFL, OKTAGON, BKFC and RIZIN** events, full fight cards, results within minutes, per-fight and round-by-round statistics, complete fighter careers, the only **MMA data API with point-in-time UFC rankings history back to 2013**, and the only one serving **judges' scorecards** — every official, every round — plus the **UFCalendar consensus odds line** (current, opening and closing on every plan, line movement on Pro). This package is a dependency-free `fetch` wrapper over it: one method per endpoint, cursor pagination handled for you, ESM + CJS, Node 18+, browsers and edge runtimes.
 
 ```bash
 npm install @ufcalendar/sdk
 ```
 
 Get a key (free 1-day trial, 100 requests, no card) at <https://www.ufcalendar.com/account/api?trial=1>. Paid plans from $19/month for 30,000 requests (Pro $49 for 200,000, Business $149 for 1,000,000) — hard caps, no overage.
+
+## Quickstart in 3 lines
+
+```ts
+import { FightAPI } from '@ufcalendar/sdk';
+const api = new FightAPI('ufcalendar_...'); // free 1-day trial key, no card
+for await (const ev of api.events({ org: 'ufc', limit: 1 })) console.log(ev.title); // the next UFC card
+```
 
 ## Quickstart
 

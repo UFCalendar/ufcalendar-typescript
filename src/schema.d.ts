@@ -3967,7 +3967,7 @@ export interface paths {
         };
         /**
          * Fighter profile
-         * @description Bio, records, stats, UFCalendar Power Index summary, and CC-licensed images with attribution metadata (displaying the credit is a license requirement). **Read `records` and `stats`** (added 2026-09-24): `records` is a map keyed by a clean name — `pro_mma` (the career MMA record), `amateur_mma`, `pro_kickboxing`, …, and the org slug for a record INSIDE one promotion (`ufc`, `one`, `bkfc`) — each `{ value, source, scope }`; `stats` is ONE per-minute panel (SLpM, striking accuracy/defense, SApM, takedown average/accuracy/defense, submission average), always the widest sample UFCalendar holds, with `basis: { bouts, orgs, source, scope }` stating exactly which bouts it averages over (e.g. 7 UFC bouts, or 18 across UFC + Oktagon); `null` when no real panel exists. `career_stats` is the raw per-source row list these are built from and stays unchanged for existing integrations.
+         * @description Bio, records, stats, UFCalendar Power Index summary, and CC-licensed images with attribution metadata (displaying the credit is a license requirement). **Read `records` and `stats`** (added 2026-09-24): `records` is a map keyed by a clean name — `pro_mma` (the career MMA record), `amateur_mma`, `pro_kickboxing`, …, and the org slug for a record INSIDE one promotion (`ufc`, `one`, `bkfc`) — each `{ value, source, scope }`; `stats` is ONE per-minute panel (SLpM, striking accuracy/defense, SApM, takedown average/accuracy/defense, submission average), always the widest sample UFCalendar holds (the `pro-mma` panel: every promotion; `tracked` for a fighter with no MMA career, e.g. a Muay Thai athlete), with `basis: { bouts, orgs, source, scope }` stating exactly which bouts it averages over (e.g. 7 UFC bouts, or 18 across UFC + Oktagon); `null` when no real panel exists. `career_stats` is the raw per-source row list these are built from and stays unchanged for existing integrations.
          *
          *     `next_fight` is the fighter's next booked bout (not completed or cancelled, on an event that has not been cancelled and started no more than ~6h ago; `result` is always null) and `last_fight` their most recent completed or no-contest bout — both in the same shape as a `source: "native"` row of `/history`, or `null`.
          *
@@ -4028,6 +4028,15 @@ export interface paths {
                          *         "team": "Chute Boxe Diego Lima",
                          *         "birthplace": "Guarujá, Brazil",
                          *         "records": {
+                         *           "pro_mma": {
+                         *             "value": "37-11-0 (1 NC)",
+                         *             "wins": 37,
+                         *             "losses": 11,
+                         *             "draws": 0,
+                         *             "no_contests": 1,
+                         *             "source": "public-records",
+                         *             "scope": "pro-mma"
+                         *           },
                          *           "ufc": {
                          *             "value": "25-11-0 (1 NC)",
                          *             "wins": 25,
@@ -4062,11 +4071,24 @@ export interface paths {
                          *             "orgs": [
                          *               "ufc"
                          *             ],
-                         *             "source": "ufc-stats",
-                         *             "scope": "ufc-only"
+                         *             "source": "ufcalendar",
+                         *             "scope": "pro-mma"
                          *           }
                          *         },
                          *         "career_stats": [
+                         *           {
+                         *             "scope": "pro-mma",
+                         *             "source": "public-records",
+                         *             "record": "37-11-0 (1 NC)",
+                         *             "slpm": "3.23",
+                         *             "str_acc": "55%",
+                         *             "sapm": "3.05",
+                         *             "str_def": null,
+                         *             "td_avg": "2.29",
+                         *             "td_acc": "39%",
+                         *             "td_def": "54%",
+                         *             "sub_avg": null
+                         *           },
                          *           {
                          *             "scope": "ufc-only",
                          *             "source": "ufc-stats",
@@ -4424,7 +4446,7 @@ export interface paths {
         };
         /**
          * Career statistics
-         * @description Raw per-source career rows, plus the readable split in `meta.records` / `meta.stats` (the same objects the fighter profile carries — read those unless you need the per-source rows). `data`: per-scope career stats (`pro-mma`, `amateur-mma`, …): record, strikes landed/absorbed per minute, accuracy/defense, takedown and submission averages, and `updated_at` (this route only). Exactly ONE row per scope; `source` names the publisher it came from: `public-records` (the complete multi-promotion career record) is preferred, then the promotion's own site (`ufc-stats`, `bkfc-official`, `one-official`, …), then `ufcalendar`. A `public-records` record is a point-in-time snapshot advanced by every settled bout UFCalendar tracked after it, so it matches the record on ufcalendar.com. Org-scoped rows (`ufc-only`, `bkfc-only`, `one-only`) are the fighter's record INSIDE that promotion, not a career record: `ufc-only` pairs ufcstats' UFC-bouts-only striking/grappling averages with a record UFCalendar derives from the fighter's tracked UFC bouts (Contender Series excluded, `W-L-D` plus ` (n NC)`; null until a UFC bout is settled), while `bkfc-only` / `one-only` carry the promotion's own published record. ufcstats', OKTAGON's and ACA's header records are CAREER records and ship under `pro-mma` (the `public-records` row wins the scope when present, unless ufcstats counts more bouts). Scope `tracked` rows are computed by UFCalendar from per-fight totals when no published panel carries data (e.g. Contender Series debutants, PFL/OKTAGON rosters); their `record` is always null.
+         * @description Raw per-source career rows, plus the readable split in `meta.records` / `meta.stats` (the same objects the fighter profile carries — read those unless you need the per-source rows). `data`: per-scope career stats (`pro-mma`, `amateur-mma`, …): record, strikes landed/absorbed per minute, accuracy/defense, takedown and submission averages, and `updated_at` (this route only). Exactly ONE row per scope; `source` names the publisher it came from: `public-records` (the complete multi-promotion career record) is preferred, then the promotion's own site (`ufc-stats`, `bkfc-official`, `one-official`, …), then `ufcalendar`. A `public-records` record is a point-in-time snapshot advanced by every settled bout UFCalendar tracked after it, so it matches the record on ufcalendar.com. A row's record and its stats cover the same bouts. `pro-mma` = the career record plus striking/grappling averages UFCalendar computes over EVERY settled bout it holds per-fight totals for, in any promotion (Contender Series included); its stats are null when no such bout exists. Org-scoped rows (`ufc-only`, `bkfc-only`, `one-only`) are the fighter's record INSIDE that promotion, not a career record: `ufc-only` carries a record AND averages UFCalendar derives from the fighter's tracked UFC bouts only (Contender Series excluded, `W-L-D` plus ` (n NC)`; both null until a UFC bout is settled — a Contender-Series-only fighter has no UFC stats), while `bkfc-only` / `one-only` carry the promotion's own published record. A fighter whose records show no MMA career at all (a ONE Muay Thai or kickboxing athlete) carries the every-promotion averages on a `tracked` row (null record) instead of `pro-mma`, because those bouts are not MMA. ufcstats', OKTAGON's and ACA's header records are CAREER records and ship under `pro-mma` (the `public-records` row wins the scope when present, unless ufcstats counts more bouts).
          */
         get: {
             parameters: {
@@ -7965,7 +7987,7 @@ export interface paths {
         put?: never;
         /**
          * Register a webhook endpoint
-         * @description Pro+. Body: `{"url": "https://...", "events": ["event.announced", "fight.result", "card.changed", "event.completed", "odds.moved"]}`. Subscribe to `event.announced` and you do not need to poll `/v1/events` to discover new cards — it fires once, within a minute of a card first landing in our data, and carries the same event object the list endpoint returns. `odds.moved` fires when the UFCalendar consensus line on an upcoming bout moves at least 5 implied-probability points on corner a, or the favourite flips, measured against the last line we delivered for that bout (its opening line before the first delivery), so a slow drift arrives once, not per refresh: `data` is `{fight_id, event, fighter_a, fighter_b, odds: {consensus, opening, movement, updated_at}, previous, delta_points_a, direction, favourite_flipped, moved_at}`. Information only, not betting advice. The response contains the signing `secret` ONCE. Every delivery body is `{"id", "type", "data", "sent_at"}` (`WebhookDelivery` schema) — `id` is stable across retries, so deduplicate on it. Deliveries carry `X-UFCalendar-Signature: t=<unix>,v1=<hmac>` where the HMAC-SHA256 input is `"<t>.<rawBody>"`. **Verify the timestamp too**: reject anything where `|now - t|` exceeds 300 seconds, otherwise a captured delivery can be replayed at you forever with a valid HMAC. Delivery is at-least-once — expect a retry roughly every 60s until your endpoint returns 2xx. Endpoints auto-disable after 20 consecutive failures, and you may hold at most 3 active endpoints (409 `endpoint_limit`). Latency: results are dispatched within ~1 minute of the result being recorded. `event.announced` only fires for cards that have not started yet, so archive backfills never reach you as new-card noise. `card.changed` is filtered the same way: a change whose before and after read identically (a venue row re-minted for the same arena, a source dropping a sub-time it never knew) is never delivered, and when a source flip-flops a value we deliver the move and its undo once, not the twentieth repeat. Deliveries are free — they never count against your monthly request quota, only the calls you make to manage endpoints do.
+         * @description Pro+. Body: `{"url": "https://...", "events": ["event.announced", "fight.result", "card.changed", "event.completed", "odds.moved"]}`. Subscribe to `event.announced` and you do not need to poll `/v1/events` to discover new cards — it fires once, within a minute of a card first landing in our data, and carries the same event object the list endpoint returns. `fight.result` fires once per bout within a minute of the result, as `revision` 1, and again as the next revision (`corrected: true`, with the `previous` result) whenever the winner, method, round, time or status is corrected in the 72 h after it — upsert on `fight_id` and keep the highest `revision`. `odds.moved` fires when the UFCalendar consensus line on an upcoming bout moves at least 5 implied-probability points on corner a, or the favourite flips, measured against the last line we delivered for that bout (its opening line before the first delivery), so a slow drift arrives once, not per refresh: `data` is `{fight_id, event, fighter_a, fighter_b, odds: {consensus, opening, movement, updated_at}, previous, delta_points_a, direction, favourite_flipped, moved_at}`. Information only, not betting advice. The response contains the signing `secret` ONCE. Every delivery body is `{"id", "type", "data", "sent_at"}` (`WebhookDelivery` schema) — `id` is stable across retries, so deduplicate on it. Deliveries carry `X-UFCalendar-Signature: t=<unix>,v1=<hmac>` where the HMAC-SHA256 input is `"<t>.<rawBody>"`. **Verify the timestamp too**: reject anything where `|now - t|` exceeds 300 seconds, otherwise a captured delivery can be replayed at you forever with a valid HMAC. Delivery is at-least-once — expect a retry roughly every 60s until your endpoint returns 2xx. Endpoints auto-disable after 20 consecutive failures, and you may hold at most 3 active endpoints (409 `endpoint_limit`). Latency: results are dispatched within ~1 minute of the result being recorded. `event.announced` only fires for cards that have not started yet, so archive backfills never reach you as new-card noise. `card.changed` is filtered the same way: a change whose before and after read identically (a venue row re-minted for the same arena, a source dropping a sub-time it never knew) is never delivered, and when a source flip-flops a value we deliver the move and its undo once, not the twentieth repeat. Deliveries are free — they never count against your monthly request quota, only the calls you make to manage endpoints do.
          */
         post: {
             parameters: {
@@ -9012,8 +9034,9 @@ export interface components {
             bouts: number;
             /** @description Org slugs those bouts span. */
             orgs: string[];
-            /** @description `ufcalendar` (computed by UFCalendar from per-fight totals) or `ufc-stats` (ufcstats.com's UFC-only panel). */
+            /** @description `ufcalendar` for the every-promotion panel, else the `ufc-only` row's source. Both are computed by UFCalendar from per-fight totals. */
             source: string;
+            /** @description `pro-mma` (every settled bout with per-fight totals, any promotion) or `ufc-only` (UFC bouts only, Contender Series excluded). */
             scope: string;
         };
         /** @description ONE per-minute panel: the widest sample UFCalendar holds for the fighter. */
@@ -9057,7 +9080,7 @@ export interface components {
         };
         /** @description Raw per-source career row, exactly one per scope. */
         CareerStatRow: {
-            /** @description `pro-mma`, `amateur-mma`, `pro-kickboxing`, …, `ufc-only` / `bkfc-only` / `one-only`, or `tracked`. */
+            /** @description `pro-mma`, `amateur-mma`, `pro-kickboxing`, …, or `ufc-only` / `bkfc-only` / `one-only`. */
             scope: string;
             /** @description Who published the record: `ufc-stats` (ufcstats.com), a promotion's own site (`ufc-official`, `bkfc-official`, `one-official`, `oktagon-official`, …), `ufcalendar` (derived by UFCalendar), or `public-records` (the complete multi-promotion career record compiled from public records). */
             source: string;
@@ -10447,7 +10470,7 @@ export interface components {
             /** @description Delivery id (stable across retries — deduplicate on it). */
             id: string;
             type: components["schemas"]["WebhookKind"];
-            /** @description `event.announced` / `event.completed`: `{event}` (the list-shape event); `fight.result`: the bout with `event` and `result`; `card.changed`: `{event, change}`; `odds.moved`: `{fight_id, event, fighter_a, fighter_b, odds: {consensus, opening, movement, updated_at}, previous, delta_points_a, direction, favourite_flipped, moved_at}` (UFCalendar consensus line, information only, not betting advice). */
+            /** @description `event.announced` / `event.completed`: `{event}` (the list-shape event); `fight.result`: the bout with `event`, `result`, `revision` and `corrected` — `revision` 1 is the first delivery; if the winner, method, round, time or status changes within 72 h of the result, the bout is re-sent as the next revision with `corrected: true` and the `previous` result it replaces (upsert on `fight_id`, keep the highest `revision`); `card.changed`: `{event, change}`; `odds.moved`: `{fight_id, event, fighter_a, fighter_b, odds: {consensus, opening, movement, updated_at}, previous, delta_points_a, direction, favourite_flipped, moved_at}` (UFCalendar consensus line, information only, not betting advice). */
             data: {
                 [key: string]: unknown;
             };
