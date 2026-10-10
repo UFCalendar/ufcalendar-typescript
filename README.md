@@ -62,7 +62,7 @@ List endpoints are **async generators** that follow `meta.pagination.next_cursor
 | `eventWatch(slug, { country })` | `GET /v1/events/{slug}/watch` — how to watch one event, per country: the rights deals for its series merged with the event's own listings |
 | `changes({ org, since, kind, limit })` | `GET /v1/changes` — the card-change feed across every event, newest first (paginated; default last 90 days) |
 | `fight(id, { include: ['odds'] })` / `fightStats(id)` / `fightRounds(id)` | `GET /v1/fights/{id}` / `…/stats` / `…/rounds` |
-| `fightOdds(id)` / `eventOdds(slug)` | `GET /v1/fights/{id}/odds` / `GET /v1/events/{slug}/odds` — the UFCalendar consensus line: current, opening, closing (settled bouts), movement and `sources` (how many sportsbooks backed each point). Information only, not betting advice |
+| `fightOdds(id)` / `eventOdds(slug)` | `GET /v1/fights/{id}/odds` / `GET /v1/events/{slug}/odds` — the UFCalendar consensus line: current, opening, closing (settled bouts), movement and `sources` (how many sportsbooks backed each point), plus `props` (method of victory per corner, total rounds over/under, goes the distance). Information only, not betting advice |
 | `fightOddsHistory(id, { from, to })` | `GET /v1/fights/{id}/odds/history` — every consensus point, oldest first (async generator; Pro plans and up) |
 | `findFights({ org, titleOnly, method, division, fighter, winner, from, to, mainEventsOnly, order, limit })` | `GET /v1/fights/search` — completed bouts, filtered, newest first (at least one narrowing filter; 25 a page, 10 pages deep) |
 | `fightScorecards(id)` | `GET /v1/fights/{id}/scorecards` — judges, rounds, totals, deductions |

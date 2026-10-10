@@ -278,6 +278,47 @@ export interface OddsBlock {
   updated_at: string | null;
 }
 
+/** One prop market's consensus price. */
+export interface PropLine {
+  yes: OddsLine;
+  /** Null when fewer than two sportsbooks quote the "no" side. */
+  no: OddsLine | null;
+  /** "Yes" with the margin removed (method of victory: its share of all six outcomes), 4 places; null when unavailable. */
+  fair_probability: number | null;
+  /** How many sportsbooks backed this price. */
+  sources: number;
+  recorded_at: string;
+}
+
+/** Over/under on one rounds line. */
+export interface PropTotalRounds {
+  line: number;
+  over: OddsLine;
+  under: OddsLine | null;
+  fair_probability_over: number | null;
+  sources: number;
+  recorded_at: string;
+}
+
+/** Method of victory for one corner. */
+export interface PropMethodCorner {
+  ko: PropLine | null;
+  sub: PropLine | null;
+  dec: PropLine | null;
+}
+
+/** Prop-market consensus for one bout (information only, not betting advice). */
+export interface FightProps {
+  method: { a: PropMethodCorner; b: PropMethodCorner };
+  /** Ascending by line; the one with the most `sources` is the main line. */
+  total_rounds: PropTotalRounds[];
+  /** Goes the distance (yes) or ends inside it (no). */
+  distance: PropLine | null;
+  /** True once settled: every price is the last before the event start. */
+  closing: boolean;
+  updated_at: string | null;
+}
+
 /** `GET /v1/fights/{id}/odds`. */
 export interface FightOdds extends OddsBlock {
   fight_id: number;
@@ -285,6 +326,8 @@ export interface FightOdds extends OddsBlock {
   event: EventRef;
   fighter_a: { id: number; slug: string; name: string } | null;
   fighter_b: { id: number; slug: string; name: string } | null;
+  /** Prop markets; null when no sportsbooks price them. */
+  props: FightProps | null;
 }
 
 /** One bout of `GET /v1/events/{id}/odds`. */
@@ -293,6 +336,8 @@ export interface EventOddsRow extends OddsBlock {
   status: string | null;
   fighter_a: { id: number; slug: string; name: string } | null;
   fighter_b: { id: number; slug: string; name: string } | null;
+  /** Prop markets; null when no sportsbooks price them. */
+  props: FightProps | null;
 }
 
 /** `GET /v1/events/{id}/odds` — card order, non-cancelled bouts, unpriced included. */

@@ -1531,7 +1531,7 @@ export interface paths {
         };
         /**
          * Consensus odds for one card
-         * @description The UFCalendar consensus line for every non-cancelled bout on one card, in card order: `fights[]`, each with `fight_id`, `status`, both corners (`fighter_a`, `fighter_b`: `id`, `slug`, `name`), `consensus` (the latest point; the closing line once the bout is settled), `opening` (the first point we recorded), `closing` (settled bouts only: the last point at or before the event start), `movement` (opening → consensus in implied-probability points on corner a, with the `direction` the market moved), `points` and `updated_at`. Every point is `a` / `b` (`american`, `decimal`, raw `implied_probability`), `favourite`, `fair_probability_a` (margin removed), `sources` (how many sportsbooks backed it) and `recorded_at`. A bout nobody has priced stays on the list with nulls and `points: 0`; `meta.priced` / `meta.unpriced` count both. `meta.checked_at` is when we last checked the market, whether or not the line moved. Consensus is the mean across the sportsbooks we track, refreshed every 30 minutes in the 48 hours before a card and every 2 hours otherwise; book identities are never exposed. Information only, not betting advice. An unknown event 404s.
+         * @description The UFCalendar consensus line for every non-cancelled bout on one card, in card order: `fights[]`, each with `fight_id`, `status`, both corners (`fighter_a`, `fighter_b`: `id`, `slug`, `name`), `consensus` (the latest point; the closing line once the bout is settled), `opening` (the first point we recorded), `closing` (settled bouts only: the last point at or before the event start), `movement` (opening → consensus in implied-probability points on corner a, with the `direction` the market moved), `points` and `updated_at`. Every point is `a` / `b` (`american`, `decimal`, raw `implied_probability`), `favourite`, `fair_probability_a` (margin removed), `sources` (how many sportsbooks backed it) and `recorded_at`. A bout nobody has priced stays on the list with nulls and `points: 0`; `meta.priced` / `meta.unpriced` count both. `meta.checked_at` is when we last checked the market, whether or not the line moved. Consensus is the mean across the sportsbooks we track, refreshed every 30 minutes in the 48 hours before a card and every 2 hours otherwise; book identities are never exposed. Each bout also carries `props` — method of victory per corner, total rounds over/under per line and goes the distance (`FightProps`, or null), described on `/v1/fights/{id}/odds`. Information only, not betting advice. An unknown event 404s.
          */
         get: {
             parameters: {
@@ -1642,7 +1642,8 @@ export interface paths {
                          *               "since": "2025-11-15T23:00:00.000Z"
                          *             },
                          *             "points": 1,
-                         *             "updated_at": "2025-11-15T23:00:00.000Z"
+                         *             "updated_at": "2025-11-15T23:00:00.000Z",
+                         *             "props": null
                          *           }
                          *         ]
                          *       },
@@ -2724,7 +2725,9 @@ export interface paths {
         };
         /**
          * Consensus odds for one bout
-         * @description The UFCalendar consensus line for one bout: `consensus` (the latest point; the closing line once the bout is settled), `opening` (the first point we recorded), `closing` (settled bouts only, `completed` or `no_contest`: the last point at or before the event start; null until then), `movement` (opening → consensus: `delta_points_a` in implied-probability points on corner a, `direction` = the corner the market moved toward, `since`), `points` (stored points) and `updated_at` (when the line last moved). Every point is `a` / `b` (`american`, `decimal`, raw `implied_probability`), `favourite`, `fair_probability_a` (margin removed) and `sources` (how many sportsbooks backed it). Consensus is the mean across the sportsbooks we track, in decimal space; book identities are never exposed. `meta.checked_at` is when we last checked the market, whether or not the line moved; `meta.history` is the movement series (Pro+). A bout nobody priced answers 200 with nulls and `points: 0`; 404 is reserved for an unknown fight. Information only, not betting advice.
+         * @description The UFCalendar consensus line for one bout: `consensus` (the latest point; the closing line once the bout is settled), `opening` (the first point we recorded), `closing` (settled bouts only, `completed` or `no_contest`: the last point at or before the event start; null until then), `movement` (opening → consensus: `delta_points_a` in implied-probability points on corner a, `direction` = the corner the market moved toward, `since`), `points` (stored points) and `updated_at` (when the line last moved). Every point is `a` / `b` (`american`, `decimal`, raw `implied_probability`), `favourite`, `fair_probability_a` (margin removed) and `sources` (how many sportsbooks backed it). Consensus is the mean across the sportsbooks we track, in decimal space; book identities are never exposed. `meta.checked_at` is when we last checked the market, whether or not the line moved; `meta.history` is the movement series (Pro+). A bout nobody priced answers 200 with nulls and `points: 0`; 404 is reserved for an unknown fight.
+         *
+         *     `props` carries the prop markets (`FightProps`, or null when no sportsbooks price them): `method` (per corner `a` / `b`: `ko`, `sub`, `dec` — each `yes` / `no` prices, `fair_probability` = its share of all six outcomes when all six are priced, `sources`), `total_rounds` (over/under per rounds line, ascending) and `distance` (goes the distance yes / no). Same consensus rule as the moneyline (the sportsbook mean; prediction markets excluded, a book far from the rest dropped, two sportsbooks minimum); prices are recorded until the event starts, so a settled bout carries its closing props (`closing: true`). Books post props in fight week. Information only, not betting advice.
          */
         get: {
             parameters: {
@@ -2831,7 +2834,136 @@ export interface paths {
                          *           "since": "2026-08-18T22:50:43.418Z"
                          *         },
                          *         "points": 57,
-                         *         "updated_at": "2026-08-29T10:50:34.350Z"
+                         *         "updated_at": "2026-08-29T10:50:34.350Z",
+                         *         "props": {
+                         *           "method": {
+                         *             "a": {
+                         *               "ko": {
+                         *                 "yes": {
+                         *                   "american": 411,
+                         *                   "decimal": 5.11,
+                         *                   "implied_probability": 0.1957
+                         *                 },
+                         *                 "no": null,
+                         *                 "fair_probability": 0.1649,
+                         *                 "sources": 12,
+                         *                 "recorded_at": "2026-08-29T07:00:00.000Z"
+                         *               },
+                         *               "sub": {
+                         *                 "yes": {
+                         *                   "american": 1322,
+                         *                   "decimal": 14.22,
+                         *                   "implied_probability": 0.0703
+                         *                 },
+                         *                 "no": null,
+                         *                 "fair_probability": 0.0593,
+                         *                 "sources": 12,
+                         *                 "recorded_at": "2026-08-29T07:00:00.000Z"
+                         *               },
+                         *               "dec": {
+                         *                 "yes": {
+                         *                   "american": 290,
+                         *                   "decimal": 3.9,
+                         *                   "implied_probability": 0.2564
+                         *                 },
+                         *                 "no": {
+                         *                   "american": -425,
+                         *                   "decimal": 1.235,
+                         *                   "implied_probability": 0.8095
+                         *                 },
+                         *                 "fair_probability": 0.216,
+                         *                 "sources": 11,
+                         *                 "recorded_at": "2026-08-29T07:00:00.000Z"
+                         *               }
+                         *             },
+                         *             "b": {
+                         *               "ko": {
+                         *                 "yes": {
+                         *                   "american": 462,
+                         *                   "decimal": 5.62,
+                         *                   "implied_probability": 0.1779
+                         *                 },
+                         *                 "no": null,
+                         *                 "fair_probability": 0.1499,
+                         *                 "sources": 12,
+                         *                 "recorded_at": "2026-08-29T07:00:00.000Z"
+                         *               },
+                         *               "sub": {
+                         *                 "yes": {
+                         *                   "american": 1078,
+                         *                   "decimal": 11.78,
+                         *                   "implied_probability": 0.0849
+                         *                 },
+                         *                 "no": null,
+                         *                 "fair_probability": 0.0715,
+                         *                 "sources": 12,
+                         *                 "recorded_at": "2026-08-29T07:00:00.000Z"
+                         *               },
+                         *               "dec": {
+                         *                 "yes": {
+                         *                   "american": 149,
+                         *                   "decimal": 2.49,
+                         *                   "implied_probability": 0.4016
+                         *                 },
+                         *                 "no": null,
+                         *                 "fair_probability": 0.3384,
+                         *                 "sources": 11,
+                         *                 "recorded_at": "2026-08-29T07:00:00.000Z"
+                         *               }
+                         *             }
+                         *           },
+                         *           "total_rounds": [
+                         *             {
+                         *               "line": 1.5,
+                         *               "over": {
+                         *                 "american": -386,
+                         *                 "decimal": 1.259,
+                         *                 "implied_probability": 0.7942
+                         *               },
+                         *               "under": {
+                         *                 "american": 258,
+                         *                 "decimal": 3.58,
+                         *                 "implied_probability": 0.2793
+                         *               },
+                         *               "fair_probability_over": 0.7398,
+                         *               "sources": 4,
+                         *               "recorded_at": "2026-08-29T07:00:00.000Z"
+                         *             },
+                         *             {
+                         *               "line": 2.5,
+                         *               "over": {
+                         *                 "american": -193,
+                         *                 "decimal": 1.518,
+                         *                 "implied_probability": 0.6587
+                         *               },
+                         *               "under": {
+                         *                 "american": 153,
+                         *                 "decimal": 2.53,
+                         *                 "implied_probability": 0.3953
+                         *               },
+                         *               "fair_probability_over": 0.625,
+                         *               "sources": 17,
+                         *               "recorded_at": "2026-08-29T07:00:00.000Z"
+                         *             }
+                         *           ],
+                         *           "distance": {
+                         *             "yes": {
+                         *               "american": -160,
+                         *               "decimal": 1.625,
+                         *               "implied_probability": 0.6154
+                         *             },
+                         *             "no": {
+                         *               "american": 123,
+                         *               "decimal": 2.23,
+                         *               "implied_probability": 0.4484
+                         *             },
+                         *             "fair_probability": 0.5785,
+                         *             "sources": 11,
+                         *             "recorded_at": "2026-08-29T07:00:00.000Z"
+                         *           },
+                         *           "closing": true,
+                         *           "updated_at": "2026-08-29T07:00:00.000Z"
+                         *         }
                          *       },
                          *       "meta": {
                          *         "note": "UFCalendar consensus line across the sportsbooks we track (book identities are not exposed). Information only, not betting advice.",
@@ -10149,7 +10281,62 @@ export interface components {
              */
             since: string;
         };
-        /** @description The consensus line of one bout: current, opening, closing (settled bouts) and the movement between opening and the current line (the close once settled). */
+        /** @description One prop market's consensus price: the mean, in decimal space, across the sportsbooks we track, converted back to American. */
+        PropLine: {
+            yes: components["schemas"]["OddsLine"];
+            /** @description Null when fewer than two sportsbooks quote the "no" side (method-of-victory props are mostly quoted "yes" only). */
+            no: components["schemas"]["OddsLine"] | null;
+            /** @description The "yes" outcome with the market margin removed, 4 places: from the yes/no pair, or for method of victory its share of all six outcomes (both corners × KO/TKO, submission, decision) when all six are priced. Null otherwise. */
+            fair_probability: number | null;
+            /** @description How many sportsbooks backed this price. Book identities are never exposed. */
+            sources: number;
+            /**
+             * Format: date-time
+             * @description When this price was recorded (the last move).
+             */
+            recorded_at: string;
+        };
+        PropTotalRounds: {
+            /** @description Rounds line (0.5, 1.5, 2.5, 3.5 or 4.5). */
+            line: number;
+            over: components["schemas"]["OddsLine"];
+            /** @description Null when fewer than two sportsbooks quote the under. */
+            under: components["schemas"]["OddsLine"] | null;
+            /** @description Over with the market margin removed (from the over/under pair), 4 places; null without an under. */
+            fair_probability_over: number | null;
+            /** @description How many sportsbooks backed the over. */
+            sources: number;
+            /** Format: date-time */
+            recorded_at: string;
+        };
+        PropMethodCorner: {
+            /** @description This corner wins by KO/TKO. */
+            ko: components["schemas"]["PropLine"] | null;
+            /** @description This corner wins by submission. */
+            sub: components["schemas"]["PropLine"] | null;
+            /** @description This corner wins by decision. */
+            dec: components["schemas"]["PropLine"] | null;
+        };
+        /** @description Prop-market consensus for one bout. Prediction markets and exchanges are excluded and a book far from the rest is dropped; a market needs at least two sportsbooks. Prices are recorded until the event starts. Information only, not betting advice. */
+        FightProps: {
+            /** @description Method of victory per corner (oriented to the bout's `fighter_a` / `fighter_b`). */
+            method: {
+                a: components["schemas"]["PropMethodCorner"];
+                b: components["schemas"]["PropMethodCorner"];
+            };
+            /** @description Over/under per rounds line, ascending. The line with the most `sources` is the main one. */
+            total_rounds: components["schemas"]["PropTotalRounds"][];
+            /** @description The fight goes the distance (yes) or ends inside it (no). */
+            distance: components["schemas"]["PropLine"] | null;
+            /** @description True once the bout is settled: every price is the last one before the event start. */
+            closing: boolean;
+            /**
+             * Format: date-time
+             * @description When any market here last moved.
+             */
+            updated_at: string | null;
+        };
+        /** @description The consensus line of one bout: current, opening, closing (settled bouts) and the movement between opening and the current line (the close once settled), plus the prop markets. */
         FightOdds: {
             fight_id: number;
             status: components["schemas"]["FightStatus"] | null;
@@ -10185,8 +10372,10 @@ export interface components {
              * @description When the line last moved (= `consensus.recorded_at`).
              */
             updated_at: string | null;
+            /** @description Prop-market consensus (method of victory, total rounds, goes the distance); null when no sportsbooks price props for the bout. */
+            props: components["schemas"]["FightProps"] | null;
         };
-        /** @description One bout of a card with its consensus line. Unpriced bouts stay on the list with nulls and `points: 0`. */
+        /** @description One bout of a card with its consensus line and prop markets. Unpriced bouts stay on the list with nulls and `points: 0`. */
         EventOddsRow: {
             fight_id: number;
             status: components["schemas"]["FightStatus"] | null;
@@ -10214,6 +10403,8 @@ export interface components {
              * @description When the line last moved (= `consensus.recorded_at`).
              */
             updated_at: string | null;
+            /** @description Prop-market consensus (method of victory, total rounds, goes the distance); null when no sportsbooks price props for the bout. */
+            props: components["schemas"]["FightProps"] | null;
         };
         EventOdds: {
             event: components["schemas"]["StorylineEvent"];
