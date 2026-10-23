@@ -552,9 +552,9 @@ export interface paths {
                     org?: "ufc" | "pfl" | "oktagon" | "bkfc" | "rizin";
                     /** @description Filter on lifecycle status; `postponed` is accepted (2026-09-24). `upcoming` = everything not yet over (announced, scheduled or live), soonest first. */
                     status?: components["schemas"]["EventStatusFilter"];
-                    /** @description Inclusive `YYYY-MM-DD`; must be a real calendar day. */
+                    /** @description First UTC calendar day, inclusive `YYYY-MM-DD`, matched against the event's `starts_at` (first bell, UTC) — not the venue's local date. Must be a real calendar day. */
                     from?: string;
-                    /** @description Inclusive `YYYY-MM-DD`; must be a real calendar day. */
+                    /** @description Last UTC calendar day, inclusive `YYYY-MM-DD`, matched against `starts_at` (UTC). An evening card in the Americas starts after midnight UTC, so it falls on the next UTC day: a Saturday-night Las Vegas card needs `to=` the Sunday. Must be a real calendar day. */
                     to?: string;
                     /** @description Sort by start time. Defaults are contextual — see endpoint description. */
                     order?: "asc" | "desc";
@@ -725,6 +725,8 @@ export interface paths {
         /**
          * Event with full card
          * @description Full fight card (both corners, results when completed), venue and event-scoped broadcast rows. Every event and card entry carries `sport` (e.g. `mma`, `bare-knuckle-boxing`). Renamed events 308-redirect from stale slugs.
+         *
+         *     **Card order is read over non-cancelled bouts only.** `ordering` runs headliner-first (1 = main event), and `ordering`, `card_section` and `is_main` describe the card as it stands — except on a `status: "cancelled"` entry, which keeps the slot and section it had when it was scratched. The promotion re-lays the card around it afterwards, so a cancelled entry can share an `ordering` with a live bout or sit in a section that no longer matches its neighbours. Filter `status != "cancelled"` before deriving running order or sections.
          *
          *     `include=eta` adds `eta` (ISO timestamp or `null`) to every card entry: the estimated start of that bout, by the same rule the website's event page uses. These are estimates, not a schedule — each card section anchors on its declared start, and every completed bout re-anchors the rest of its section on its real finish. Cancelled bouts get `null`.
          *
@@ -1931,9 +1933,9 @@ export interface paths {
                     fighter?: string;
                     /** @description Fighter slug or id — bouts this fighter won. */
                     winner?: string;
-                    /** @description Earliest event date, YYYY-MM-DD. */
+                    /** @description First UTC calendar day, inclusive `YYYY-MM-DD`, matched against the event's `starts_at` (first bell, UTC) — not the venue's local date. Must be a real calendar day. */
                     from?: string;
-                    /** @description Latest event date, YYYY-MM-DD. */
+                    /** @description Last UTC calendar day, inclusive `YYYY-MM-DD`, matched against `starts_at` (UTC). An evening card in the Americas starts after midnight UTC, so it falls on the next UTC day: a Saturday-night Las Vegas card needs `to=` the Sunday. Must be a real calendar day. */
                     to?: string;
                     /** @description `true` = main events only. */
                     main_events_only?: boolean;
@@ -2515,11 +2517,11 @@ export interface paths {
         };
         /**
          * Judges' scorecards for a bout
-         * @description The official athletic-commission record: every judge, their score for each round, their card total, the decision type and any point deductions. UFC back to 1995, PFL to 2018, OKTAGON to 2025, RIZIN from March 2026 (Japan has no athletic commission — the record is the one published by the officials body that judges RIZIN). UFC cards are cross-checked against the official scorecards ufc.com publishes (Dana White's Contender Series and Road to UFC included, from March 2022), which also fill bouts the commission record does not cover. `source` says who published the cards: `commission-record`, `ufc-official-cards`, or a promotion's own slug (`oktagon-official`, `pfl-official`, `aca-official`).
+         * @description The official athletic-commission record: every judge, their score for each round, their card total, the decision type and any point deductions. UFC back to 1995, PFL to 2018, OKTAGON to 2025, RIZIN 2019–2022 and from March 2026 (Japan has no athletic commission — the record is the one published by the officials body that judges RIZIN; before March 2026 RIZIN judged each fight as a whole, so those cards carry each judge's total for the fight and no rounds, and 2023–2025 was not published). UFC cards are cross-checked against the official scorecards ufc.com publishes (Dana White's Contender Series and Road to UFC included, from March 2022), which also fill bouts the commission record does not cover. `source` says who published the cards: `commission-record`, `ufc-official-cards`, or a promotion's own slug (`oktagon-official`, `pfl-official`, `aca-official`).
          *
          *     `total_a`/`total_b` and every round are oriented to the bout's `fighter_a_id`/`fighter_b_id`, which are repeated on the payload so you never have to fetch the fight to read a card. `winner_fighter_id` is who THAT judge gave it to.
          *
-         *     **Check `scores_known` before charting totals.** When it is false the commission published only the outcome, and `total_a`/`total_b` are a 1-0 / 1-1 / 0-0 placeholder rather than a score (66 fights, nearly all pre-2005); `rounds` is empty on those cards.
+         *     **Check `scores_known` before charting totals.** When it is false the commission published only the outcome, and `total_a`/`total_b` are a 1-0 / 1-1 / 0-0 placeholder rather than a score (pre-2005 commission records, and the RIZIN cards where the officials published only each judge's pick); `rounds` is empty on those cards.
          *
          *     **A bout with no commission record answers 200, not 404** (2026-09-24): `cards: []`, `decision_type: null`, and `meta.note` says why (a finish, or cards not yet published). 404 is reserved for an unknown fight, so a client can tell the two apart.
          *
@@ -3051,9 +3053,9 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Earliest recorded day, inclusive `YYYY-MM-DD`. */
+                    /** @description Earliest recorded day (UTC), inclusive `YYYY-MM-DD`. */
                     from?: string;
-                    /** @description Latest recorded day, inclusive `YYYY-MM-DD`; must not precede `from`. */
+                    /** @description Latest recorded day (UTC), inclusive `YYYY-MM-DD`; must not precede `from`. */
                     to?: string;
                     /** @description Opaque cursor from `meta.pagination.next_cursor`. */
                     cursor?: string;
@@ -3223,9 +3225,9 @@ export interface paths {
                 query?: {
                     /** @description Launch org slug: `ufc`, `pfl`, `oktagon`, `bkfc` or `rizin`. Staged orgs 400 until promoted. */
                     org?: "ufc" | "pfl" | "oktagon" | "bkfc" | "rizin";
-                    /** @description Earliest event date, YYYY-MM-DD. */
+                    /** @description First UTC calendar day, inclusive `YYYY-MM-DD`, matched against the event's `starts_at` (first bell, UTC) — not the venue's local date. Must be a real calendar day. */
                     from?: string;
-                    /** @description Latest event date, YYYY-MM-DD. */
+                    /** @description Last UTC calendar day, inclusive `YYYY-MM-DD`, matched against `starts_at` (UTC). An evening card in the Americas starts after midnight UTC, so it falls on the next UTC day: a Saturday-night Las Vegas card needs `to=` the Sunday. Must be a real calendar day. */
                     to?: string;
                     /** @description Opaque cursor from `meta.pagination.next_cursor`. */
                     cursor?: string;
@@ -4099,7 +4101,7 @@ export interface paths {
         };
         /**
          * Fighter profile
-         * @description Bio, records, stats, UFCalendar Power Index summary, and CC-licensed images with attribution metadata (displaying the credit is a license requirement). **Read `records` and `stats`** (added 2026-09-24): `records` is a map keyed by a clean name — `pro_mma` (the career MMA record), `amateur_mma`, `pro_kickboxing`, …, and the org slug for a record INSIDE one promotion (`ufc`, `one`, `bkfc`) — each `{ value, source, scope }`; `stats` is ONE per-minute panel (SLpM, striking accuracy/defense, SApM, takedown average/accuracy/defense, submission average), always the widest sample UFCalendar holds (the `pro-mma` panel: every promotion; `tracked` for a fighter with no MMA career, e.g. a Muay Thai athlete), with `basis: { bouts, orgs, source, scope }` stating exactly which bouts it averages over (e.g. 7 UFC bouts, or 18 across UFC + Oktagon); `null` when no real panel exists. `career_stats` is the raw per-source row list these are built from and stays unchanged for existing integrations.
+         * @description Bio, records, stats, UFCalendar Power Index summary, and CC-licensed images with attribution metadata (displaying the credit is a license requirement). **Read `records` and `stats`** (added 2026-09-24): `records` is a map keyed by a clean name — `pro_mma` (the career MMA record), `amateur_mma`, `pro_kickboxing`, …, and the org slug for a record INSIDE one promotion (`ufc`, `one`, `bkfc`) — each `{ value, source, scope }`; `stats` is ONE per-minute panel (SLpM, striking accuracy/defense, SApM, takedown average/accuracy/defense, submission average), always ONE sport (the fighter's headline sport: the `pro-mma` panel over MMA bouts in every promotion; `pro-knuckle` for a bare-knuckle fighter, `pro-muay-thai` / `pro-kickboxing` for a ONE striker; sports are never averaged together), with `basis: { bouts, orgs, source, scope }` stating exactly which bouts it averages over (e.g. 7 UFC bouts, or 18 MMA bouts across UFC + Oktagon); `null` when no real panel exists. `career_stats` is the raw per-source row list these are built from and stays unchanged for existing integrations.
          *
          *     `next_fight` is the fighter's next booked bout (not completed or cancelled, on an event that has not been cancelled and started no more than ~6h ago; `result` is always null) and `last_fight` their most recent completed or no-contest bout — both in the same shape as a `source: "native"` row of `/history`, or `null`.
          *
@@ -4578,7 +4580,7 @@ export interface paths {
         };
         /**
          * Career statistics
-         * @description Raw per-source career rows, plus the readable split in `meta.records` / `meta.stats` (the same objects the fighter profile carries — read those unless you need the per-source rows). `data`: per-scope career stats (`pro-mma`, `amateur-mma`, …): record, strikes landed/absorbed per minute, accuracy/defense, takedown and submission averages, and `updated_at` (this route only). Exactly ONE row per scope; `source` names the publisher it came from: `public-records` (the complete multi-promotion career record) is preferred, then the promotion's own site (`ufc-stats`, `bkfc-official`, `one-official`, …), then `ufcalendar`. A `public-records` record is a point-in-time snapshot advanced by every settled bout UFCalendar tracked after it, so it matches the record on ufcalendar.com. A row's record and its stats cover the same bouts. `pro-mma` = the career record plus striking/grappling averages UFCalendar computes over EVERY settled bout it holds per-fight totals for, in any promotion (Contender Series included); its stats are null when no such bout exists. Org-scoped rows (`ufc-only`, `bkfc-only`, `one-only`) are the fighter's record INSIDE that promotion, not a career record: `ufc-only` carries a record AND averages UFCalendar derives from the fighter's tracked UFC bouts only (Contender Series excluded, `W-L-D` plus ` (n NC)`; both null until a UFC bout is settled — a Contender-Series-only fighter has no UFC stats), while `bkfc-only` / `one-only` carry the promotion's own published record. A fighter whose records show no MMA career at all (a ONE Muay Thai or kickboxing athlete) carries the every-promotion averages on a `tracked` row (null record) instead of `pro-mma`, because those bouts are not MMA. ufcstats', OKTAGON's and ACA's header records are CAREER records and ship under `pro-mma` (the `public-records` row wins the scope when present, unless ufcstats counts more bouts).
+         * @description Raw per-source career rows, plus the readable split in `meta.records` / `meta.stats` (the same objects the fighter profile carries — read those unless you need the per-source rows). `data`: per-scope career stats (`pro-mma`, `amateur-mma`, …): record, strikes landed/absorbed per minute, accuracy/defense, takedown and submission averages, and `updated_at` (this route only). Exactly ONE row per scope; `source` names the publisher it came from: `public-records` (the complete multi-promotion career record) is preferred, then the promotion's own site (`ufc-stats`, `bkfc-official`, `one-official`, …), then `ufcalendar`. A `public-records` record is a point-in-time snapshot advanced by every settled bout UFCalendar tracked after it, so it matches the record on ufcalendar.com. A row's record and its stats cover the same bouts. `pro-mma` = the career record plus striking/grappling averages UFCalendar computes over EVERY settled MMA bout it holds per-fight totals for, in any promotion (Contender Series included); its stats are null when no such bout exists. Bouts of another sport are averaged on that sport's row (`pro-knuckle` for bare-knuckle boxing, `pro-muay-thai`, `pro-kickboxing`, `pro-boxing`; a stats-only row with a null record when the fighter has no such record row) and never enter `pro-mma`. Org-scoped rows (`ufc-only`, `bkfc-only`, `one-only`) are the fighter's record INSIDE that promotion, not a career record: `ufc-only` carries a record AND averages UFCalendar derives from the fighter's tracked UFC bouts only (Contender Series excluded, `W-L-D` plus ` (n NC)`; both null until a UFC bout is settled — a Contender-Series-only fighter has no UFC stats), while `bkfc-only` / `one-only` carry the promotion's own published record. ufcstats', OKTAGON's and ACA's header records are CAREER records and ship under `pro-mma` (the `public-records` row wins the scope when present, unless ufcstats counts more bouts).
          */
         get: {
             parameters: {
@@ -5860,7 +5862,7 @@ export interface paths {
         };
         /**
          * Matchmaker board
-         * @description UFCalendar's matchmaker for one MMA promotion (`ufc`, `pfl`, `oktagon`, `rizin`; `bkfc` 400s `unsupported_org` — the engine runs on the Power Index, which rates MMA only). Every candidate pair inside a division is scored 0–100 for rank proximity, momentum, competitiveness, readiness and story (rematches, trilogy deciders, eliminators): the promotion's official ladder where one exists plus the strongest active unranked Power Index fighters. UFC pairs are scored by UFCalendar's booking model (a ranker trained on every realized UFC booking), weighted by the stakes term; other promotions use the fitted heuristic. Fighters already booked leave the board, pairs already booked are excluded, and one fighter appears in at most two slips per division.
+         * @description UFCalendar's matchmaker for one MMA promotion (`ufc`, `pfl`, `oktagon`, `rizin`; `bkfc` 400s `unsupported_org` — the engine runs on the Power Index, which rates MMA only). Every candidate pair inside a division is scored 0–100 for rank proximity, momentum, competitiveness, readiness and story (rematches, trilogy deciders, eliminators): the promotion's official ladder where one exists plus the strongest active unranked Power Index fighters. A promotion with no official ladder (`rizin`) draws only on its current roster — fighters whose latest bout in the promotion is within 450 days — and its pairs are weighted by what each fighter has done there (title fights, wins, career pedigree), so a former champion is not paired with a two-fight prospect. UFC pairs are scored by UFCalendar's booking model (a ranker trained on every realized UFC booking), weighted by the stakes term; other promotions use the fitted heuristic. Fighters already booked leave the board, pairs already booked are excluded, and one fighter appears in at most two slips per division.
          *
          *     Without `division` the list is the cross-division top board (at most two slips per division); with it, that division's best pairs. `meta.divisions` lists the promotion's divisions (an unknown one 400s `invalid_division`), `meta.rankings_date` the ladder snapshot used (null when the promotion has no current ladder). Each slip: `key` (`lo-hi` fighter ids), `a` (red corner — the better-credentialed side) and `b` with `rank` (0 = champion, null = unranked), `power_index`, `streak` (signed: +3 = three straight wins) and `booked`; `score`; `win_probability_a` from the two Power Index ratings; `tags` (`title`, `eliminator`, `coinFlip`, `bothStreaking`, `finishers`, `trilogyDecider`, `unfinishedBusiness`, `rematch`, `unrankedGem`, `bounceBack`, `steppingUp`, `bothDue`, `booked`).
          *
@@ -7214,7 +7216,9 @@ export interface paths {
                 query?: {
                     /** @description Same values as `/v1/events`; `upcoming` = the venue's cards not yet over. */
                     status?: components["schemas"]["EventStatusFilter"];
+                    /** @description First UTC calendar day, inclusive `YYYY-MM-DD`, matched against the event's `starts_at` (first bell, UTC) — not the venue's local date. Must be a real calendar day. */
                     from?: string;
+                    /** @description Last UTC calendar day, inclusive `YYYY-MM-DD`, matched against `starts_at` (UTC). An evening card in the Americas starts after midnight UTC, so it falls on the next UTC day: a Saturday-night Las Vegas card needs `to=` the Sunday. Must be a real calendar day. */
                     to?: string;
                     order?: "asc" | "desc";
                     /** @description Opaque cursor from `meta.pagination.next_cursor`. */
@@ -9246,7 +9250,10 @@ export interface components {
             event_title: string;
             event_slug: string;
             org_slug: string;
-            /** Format: date */
+            /**
+             * Format: date
+             * @description The UTC calendar day of the event's `starts_at` (first bell). An evening card in the Americas starts after midnight UTC, so it can read one day after the venue's local date; use the event's `starts_at` + `tz` for a local label.
+             */
             date: string | null;
             opponent_id: number | null;
             opponent_name: string | null;
@@ -9559,7 +9566,10 @@ export interface components {
             event_name: string | null;
             event_slug: string | null;
             org_slug: string | null;
-            /** Format: date */
+            /**
+             * Format: date
+             * @description `native` rows: the UTC calendar day of the event's `starts_at` (first bell) — an evening card in the Americas starts after midnight UTC, so it can read one day after the venue's local date. `history` rows carry no time, only the date as the publisher printed it (usually the venue's local date).
+             */
             date: string | null;
             opponent_id: number | null;
             opponent_name: string | null;
