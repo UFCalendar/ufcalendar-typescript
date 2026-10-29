@@ -1,4 +1,4 @@
-export { FightAPI, FightAPIError, DEFAULT_BASE_URL } from './client';
+export { FightAPI, FightAPIError, DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, MAX_RETRY_AFTER_SECONDS } from './client';
 export type { FightAPIOptions, Query, QueryValue } from './client';
 export { VERSION } from './version';
 export type * from './types';

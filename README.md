@@ -123,12 +123,27 @@ new FightAPI({
   fetch,                  // inject your own fetch
   timeoutMs,              // default 30_000
   headers,                // extra headers on every request
+  maxRetries,             // per-minute 429 retries on GETs, default 3 (0 disables)
 });
 ```
 
 ## Errors and rate limits
 
 Every error throws `FightAPIError` with `.status`, `.code`, `.message` and `.requestId` — quote the request id when you write to api@ufcalendar.com. After each call `api.lastRateLimit` holds the `X-RateLimit-*` headers (monthly quota).
+
+Rate-limited reads are waited out for you. When a `GET` hits the per-minute limit (429
+`rate_limited`, `Retry-After` of 60 s or less; the free plan allows 10 requests a minute) the
+client waits for `Retry-After` plus a little jitter and tries again, up to `maxRetries` times
+(default 3), so a script that walks a few pages does not die mid-run. A 429'd request does not
+count against your month.
+
+```ts
+const api = new FightAPI('ufcalendar_...', { maxRetries: 5 }); // wait out more per-minute 429s
+const strict = new FightAPI('ufcalendar_...', { maxRetries: 0 }); // throw on the first 429
+```
+
+The monthly quota (429 `quota_exceeded`), a 429 with a long or missing `Retry-After`, and every
+non-`GET` request (webhook endpoint create / delete / rotate) throw `FightAPIError` at once.
 
 ## Notes
 

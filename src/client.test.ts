@@ -600,3 +600,96 @@ describe('consensus odds', () => {
     }, (e: unknown) => e instanceof FightAPIError && e.code === 'tier_required' && e.status === 403);
   });
 });
+
+describe('429 retries', () => {
+  const rateLimited = (retryAfter: string | null = '7') => ({
+    status: 429,
+    body: { error: { code: 'rate_limited', message: 'Per-minute limit of 10', request_id: 'req_rl' } },
+    headers: (retryAfter === null ? {} : { 'Retry-After': retryAfter }) as Record<string, string>,
+  });
+  const recorder = () => {
+    const waits: number[] = [];
+    return { waits, sleep: async (ms: number) => void waits.push(ms) };
+  };
+
+  it('waits out a per-minute 429 on a GET and retries', async () => {
+    const { calls, fetchImpl } = stub([rateLimited('7'), { body: { data: [{ slug: 'ufc' }] } }]);
+    const { waits, sleep } = recorder();
+    const api = new FightAPI({ apiKey: 'k', fetch: fetchImpl, sleep });
+    assert.deepEqual(await api.orgs(), [{ slug: 'ufc' }]);
+    assert.equal(calls.length, 2);
+    assert.equal(waits.length, 1);
+    assert.ok(waits[0]! >= 7000 && waits[0]! < 7500, `waited ${waits[0]}ms`); // Retry-After + jitter
+  });
+
+  it('retries mid-pagination and keeps the cursor', async () => {
+    const { calls, fetchImpl } = stub([
+      { body: { data: [{ slug: 'a' }], meta: { pagination: { next_cursor: 'C2', has_more: true } } } },
+      rateLimited('3'),
+      { body: { data: [{ slug: 'b' }], meta: { pagination: { next_cursor: null, has_more: false } } } },
+    ]);
+    const { waits, sleep } = recorder();
+    const api = new FightAPI({ apiKey: 'k', fetch: fetchImpl, sleep });
+    const slugs: string[] = [];
+    for await (const e of api.events({ org: 'ufc' })) slugs.push(e.slug);
+    assert.deepEqual(slugs, ['a', 'b']);
+    assert.equal(calls[2]!.url.searchParams.get('cursor'), 'C2');
+    assert.equal(waits.length, 1);
+  });
+
+  it('is bounded: after maxRetries the 429 throws', async () => {
+    const { calls, fetchImpl } = stub([rateLimited('1')]);
+    const { waits, sleep } = recorder();
+    const api = new FightAPI({ apiKey: 'k', fetch: fetchImpl, sleep });
+    await assert.rejects(api.orgs(), (e: unknown) => e instanceof FightAPIError && e.status === 429 && e.code === 'rate_limited');
+    assert.equal(calls.length, 4); // 1 + 3 retries
+    assert.equal(waits.length, 3);
+  });
+
+  it('maxRetries: 0 disables retrying', async () => {
+    const { calls, fetchImpl } = stub([rateLimited('1')]);
+    const { waits, sleep } = recorder();
+    const api = new FightAPI({ apiKey: 'k', fetch: fetchImpl, sleep, maxRetries: 0 });
+    await assert.rejects(api.orgs(), FightAPIError);
+    assert.equal(calls.length, 1);
+    assert.equal(waits.length, 0);
+  });
+
+  it('rejects a negative or fractional maxRetries', () => {
+    assert.throws(() => new FightAPI({ apiKey: 'k', maxRetries: -1 }), RangeError);
+    assert.throws(() => new FightAPI({ apiKey: 'k', maxRetries: 1.5 }), RangeError);
+  });
+
+  it('the monthly quota throws at once, even with a short Retry-After', async () => {
+    // Seconds before the month rolls over the quota's Retry-After is short —
+    // the problem code, not the header, is what says "do not wait".
+    const { calls, fetchImpl } = stub([
+      { status: 429, body: { error: { code: 'quota_exceeded', message: 'Monthly quota', request_id: 'r' } }, headers: { 'Retry-After': '20' } },
+    ]);
+    const { waits, sleep } = recorder();
+    const api = new FightAPI({ apiKey: 'k', fetch: fetchImpl, sleep });
+    await assert.rejects(api.orgs(), (e: unknown) => e instanceof FightAPIError && e.code === 'quota_exceeded');
+    assert.equal(calls.length, 1);
+    assert.equal(waits.length, 0);
+  });
+
+  for (const ra of [null, '3600', 'soon']) {
+    it(`a 429 with Retry-After ${JSON.stringify(ra)} throws at once`, async () => {
+      const { calls, fetchImpl } = stub([rateLimited(ra)]);
+      const { waits, sleep } = recorder();
+      const api = new FightAPI({ apiKey: 'k', fetch: fetchImpl, sleep });
+      await assert.rejects(api.orgs(), FightAPIError);
+      assert.equal(calls.length, 1);
+      assert.equal(waits.length, 0);
+    });
+  }
+
+  it('never replays a POST', async () => {
+    const { calls, fetchImpl } = stub([rateLimited('2')]);
+    const { waits, sleep } = recorder();
+    const api = new FightAPI({ apiKey: 'k', fetch: fetchImpl, sleep });
+    await assert.rejects(api.createWebhookEndpoint('https://example.com/h', ['fight.result']), FightAPIError);
+    assert.equal(calls.length, 1);
+    assert.equal(waits.length, 0);
+  });
+});

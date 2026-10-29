@@ -77,6 +77,15 @@ import type {
 
 export const DEFAULT_BASE_URL = 'https://api.ufcalendar.com/v1';
 const DEFAULT_TIMEOUT_MS = 30_000;
+/** Default number of times a GET that hit the per-minute limit is retried. */
+export const DEFAULT_MAX_RETRIES = 3;
+/**
+ * A 429 whose `Retry-After` is longer than this is not waited out: the
+ * per-minute limit always resets within a minute, anything longer is the
+ * monthly quota (or something we do not understand) and must surface.
+ */
+export const MAX_RETRY_AFTER_SECONDS = 60;
+const RETRY_JITTER_MS = 500;
 
 export interface FightAPIOptions {
   /** `ufcalendar_…` key from https://www.ufcalendar.com/account/api. Falls back
@@ -91,6 +100,15 @@ export interface FightAPIOptions {
   timeoutMs?: number;
   /** Extra headers on every request. */
   headers?: Record<string, string>;
+  /**
+   * How many times a GET that hit the per-minute limit (429 `rate_limited`
+   * with `Retry-After` ≤ 60 s) is retried after waiting `Retry-After` plus a
+   * little jitter. Default 3; `0` disables. The monthly quota
+   * (`quota_exceeded`) and non-GET requests always throw at once.
+   */
+  maxRetries?: number;
+  /** Replace the wait between rate-limit retries (tests, custom schedulers). */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 /** An error response from the Fight API. */
@@ -126,6 +144,35 @@ function canSetUserAgent(): boolean {
   return typeof document === 'undefined' && typeof window === 'undefined';
 }
 
+/** `Retry-After` as seconds: delta-seconds or an HTTP date; null if absent/unparseable. */
+function retryAfterSeconds(value: string | null): number | null {
+  if (value === null) return null;
+  const v = value.trim();
+  if (v === '') return null;
+  let secs = Number(v);
+  if (!Number.isFinite(secs)) {
+    const when = Date.parse(v);
+    if (!Number.isFinite(when)) return null;
+    secs = (when - Date.now()) / 1000;
+  }
+  return Math.max(0, secs);
+}
+
+/**
+ * Seconds to wait before retrying a 429, or null when it must not be retried.
+ * Only the per-minute limit (`rate_limited`) is waited out. The monthly quota
+ * (`quota_exceeded`) throws at once — near the end of a month its
+ * `Retry-After` can be short, so the code is checked, not just the header.
+ */
+function shortRateLimitWait(res: Response, code: string | undefined): number | null {
+  if (code === 'quota_exceeded') return null;
+  const secs = retryAfterSeconds(res.headers.get('Retry-After'));
+  if (secs === null || secs > MAX_RETRY_AFTER_SECONDS) return null;
+  return secs;
+}
+
+const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 function envKey(): string | undefined {
   const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
   return env?.UFCALENDAR_API_KEY || env?.UFCAL_API_KEY;
@@ -134,6 +181,8 @@ function envKey(): string | undefined {
 export class FightAPI {
   readonly baseUrl: string;
   readonly apiKey: string | undefined;
+  /** Retries of a GET that hit the per-minute limit (see `FightAPIOptions.maxRetries`). */
+  readonly maxRetries: number;
 
   /** `meta` of the most recent response (pagination cursor, generated_at …). */
   lastMeta: Meta | null = null;
@@ -143,6 +192,7 @@ export class FightAPI {
   readonly #fetch: typeof fetch;
   readonly #timeoutMs: number;
   readonly #headers: Record<string, string>;
+  readonly #sleep: (ms: number) => Promise<void>;
 
   constructor(apiKeyOrOptions?: string | FightAPIOptions, options: FightAPIOptions = {}) {
     const opts: FightAPIOptions =
@@ -154,6 +204,12 @@ export class FightAPI {
     this.#fetch = opts.fetch ?? globalThis.fetch;
     this.#timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.#headers = opts.headers ?? {};
+    this.#sleep = opts.sleep ?? defaultSleep;
+    const maxRetries = opts.maxRetries ?? DEFAULT_MAX_RETRIES;
+    if (!Number.isInteger(maxRetries) || maxRetries < 0) {
+      throw new RangeError('maxRetries must be a non-negative integer');
+    }
+    this.maxRetries = maxRetries;
     if (!this.#fetch) {
       throw new Error('No global fetch available. Use Node 18+ or pass { fetch }.');
     }
@@ -188,39 +244,56 @@ export class FightAPI {
     if (canSetUserAgent()) headers['User-Agent'] = `ufcalendar-typescript/${VERSION}`;
     if (body !== undefined) headers['Content-Type'] = 'application/json';
 
+    const url = this.#url(path, params);
     let res: Response;
-    try {
-      res = await this.#fetch(this.#url(path, params), {
-        method,
-        headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.timeout(this.#timeoutMs),
-      });
-    } catch (e) {
-      const err = e as { name?: string; message?: string };
-      if (err?.name === 'TimeoutError') {
-        throw new FightAPIError(0, 'timeout', `Request to ${path} timed out after ${this.#timeoutMs}ms`);
+    let text: string;
+    let parsed: unknown;
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        res = await this.#fetch(url, {
+          method,
+          headers,
+          body: body === undefined ? undefined : JSON.stringify(body),
+          signal: AbortSignal.timeout(this.#timeoutMs),
+        });
+      } catch (e) {
+        const err = e as { name?: string; message?: string };
+        if (err?.name === 'TimeoutError') {
+          throw new FightAPIError(0, 'timeout', `Request to ${path} timed out after ${this.#timeoutMs}ms`);
+        }
+        throw new FightAPIError(0, 'network_error', err?.message ?? String(e));
       }
-      throw new FightAPIError(0, 'network_error', err?.message ?? String(e));
-    }
 
-    this.lastRateLimit = {
-      limit: res.headers.get('X-RateLimit-Limit'),
-      remaining: res.headers.get('X-RateLimit-Remaining'),
-      reset: res.headers.get('X-RateLimit-Reset'),
-    };
+      this.lastRateLimit = {
+        limit: res.headers.get('X-RateLimit-Limit'),
+        remaining: res.headers.get('X-RateLimit-Remaining'),
+        reset: res.headers.get('X-RateLimit-Reset'),
+      };
 
-    if (res.status === 204) {
-      this.lastMeta = null;
-      return { data: undefined as T };
-    }
+      if (res.status === 204) {
+        this.lastMeta = null;
+        return { data: undefined as T };
+      }
 
-    const text = await res.text();
-    let parsed: unknown = undefined;
-    try {
-      parsed = text ? JSON.parse(text) : undefined;
-    } catch {
+      text = await res.text();
       parsed = undefined;
+      try {
+        parsed = text ? JSON.parse(text) : undefined;
+      } catch {
+        parsed = undefined;
+      }
+
+      // Wait out the per-minute limit on reads (a 429'd request is not
+      // counted against the month). Writes are never replayed.
+      if (res.status === 429 && method.toUpperCase() === 'GET' && attempt < this.maxRetries) {
+        const code = (parsed as { error?: { code?: string } } | undefined)?.error?.code;
+        const wait = shortRateLimitWait(res, code);
+        if (wait !== null) {
+          await this.#sleep(wait * 1000 + Math.random() * RETRY_JITTER_MS);
+          continue;
+        }
+      }
+      break;
     }
 
     if (!res.ok) {
