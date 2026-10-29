@@ -180,7 +180,7 @@ export class FightAPI {
         401,
         'no_api_key',
         'No API key. Pass new FightAPI("ufcalendar_...") or set UFCALENDAR_API_KEY. ' +
-          'Keys (and the free 1-day trial) live at https://www.ufcalendar.com/account/api',
+          'Keys (free plan: 1,000 requests/month, no card) live at https://www.ufcalendar.com/account/api',
       );
     }
     const headers: Record<string, string> = { Accept: 'application/json', ...this.#headers };
@@ -275,7 +275,7 @@ export class FightAPI {
   /* --------------------------------------------------------------- plans */
 
   /**
-   * Plans, quotas, the free 1-day trial rule, the MCP endpoint and the doc
+   * Plans (Free first), quotas, the free-plan rule, the MCP endpoint and the doc
    * links. The only endpoint that answers without a credential.
    */
   async plans(): Promise<Plans> {
@@ -791,7 +791,7 @@ export class FightAPI {
         401,
         'no_api_key',
         'No API key. Pass new FightAPI("ufcalendar_...") or set UFCALENDAR_API_KEY. ' +
-          'Keys (and the free 1-day trial) live at https://www.ufcalendar.com/account/api',
+          'Keys (free plan: 1,000 requests/month, no card) live at https://www.ufcalendar.com/account/api',
       );
     }
     return `${this.baseUrl}/calendar/${encodeURIComponent(org)}.ics?key=${encodeURIComponent(this.apiKey)}`;

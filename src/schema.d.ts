@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * Plans, quotas and how to connect (no key required)
-         * @description The only endpoint that answers without a credential. Returns every plan with its monthly request quota, per-minute limit, key limit and a `checkout_url`; the terms of the free 1-day trial and the URL that starts it; the MCP endpoint with both of its auth doors; and the documentation links. Static per deploy and cached an hour — poll it never, read it once.
+         * @description The only endpoint that answers without a credential. Returns every plan, Free first, with its monthly request quota, per-minute limit, key limit and a `checkout_url`; the free-plan terms (1,000 requests a month, no card, never expires) and the URL that mints its key; the MCP endpoint with both of its auth doors; and the documentation links. Static per deploy and cached an hour — poll it never, read it once.
          */
         get: {
             parameters: {
@@ -24,7 +24,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Plans, trial rule, MCP endpoint and links */
+                /** @description Plans, the free-plan rule, MCP endpoint and links */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -35,6 +35,20 @@ export interface paths {
                          *       "data": {
                          *         "currency": "USD",
                          *         "plans": [
+                         *           {
+                         *             "key": "free",
+                         *             "name": "Free",
+                         *             "price_monthly_usd": 0,
+                         *             "price_yearly_usd": 0,
+                         *             "requests_per_month": 1000,
+                         *             "rpm": 10,
+                         *             "key_limit": 1,
+                         *             "features": [
+                         *               "no card",
+                         *               "never expires"
+                         *             ],
+                         *             "checkout_url": "https://www.ufcalendar.com/account/api?trial=1"
+                         *           },
                          *           {
                          *             "key": "hobby",
                          *             "name": "Hobby",
@@ -47,11 +61,12 @@ export interface paths {
                          *             "checkout_url": "https://www.ufcalendar.com/account/api?plan=hobby"
                          *           }
                          *         ],
-                         *         "trial": {
-                         *           "hours": 24,
-                         *           "requests": 100,
+                         *         "free_plan": {
+                         *           "requests_per_month": 1000,
+                         *           "rpm": 10,
+                         *           "key_limit": 1,
                          *           "card_required": false,
-                         *           "per_account": 1,
+                         *           "expires": false,
                          *           "start_url": "https://www.ufcalendar.com/account/api?trial=1"
                          *         },
                          *         "mcp": {
@@ -177,7 +192,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -282,7 +297,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -488,7 +503,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -669,7 +684,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -802,7 +817,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -917,7 +932,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -1096,7 +1111,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -1327,7 +1342,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -1478,7 +1493,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -1685,7 +1700,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -1861,7 +1876,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -2067,7 +2082,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -2252,7 +2267,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -2357,7 +2372,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -2462,7 +2477,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -2672,7 +2687,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -2993,7 +3008,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -3438,7 +3453,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -3602,7 +3617,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -3707,7 +3722,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -3903,7 +3918,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -4046,7 +4061,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -4371,7 +4386,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -4525,7 +4540,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -4640,7 +4655,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -4790,7 +4805,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -4924,7 +4939,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -5170,7 +5185,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -5359,7 +5374,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -5511,7 +5526,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -5652,7 +5667,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -5807,7 +5822,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -5862,7 +5877,7 @@ export interface paths {
         };
         /**
          * Matchmaker board
-         * @description UFCalendar's matchmaker for one MMA promotion (`ufc`, `pfl`, `oktagon`, `rizin`; `bkfc` 400s `unsupported_org` — the engine runs on the Power Index, which rates MMA only). Every candidate pair inside a division is scored 0–100 for rank proximity, momentum, competitiveness, readiness and story (rematches, trilogy deciders, eliminators): the promotion's official ladder where one exists plus the strongest active unranked Power Index fighters. A promotion with no official ladder (`rizin`) draws only on its current roster — fighters whose latest bout in the promotion is within 450 days — and its pairs are weighted by what each fighter has done there (title fights, wins, career pedigree), so a former champion is not paired with a two-fight prospect. UFC pairs are scored by UFCalendar's booking model (a ranker trained on every realized UFC booking), weighted by the stakes term; other promotions use the fitted heuristic. Fighters already booked leave the board, pairs already booked are excluded, and one fighter appears in at most two slips per division.
+         * @description UFCalendar's matchmaker for one MMA promotion (`ufc`, `pfl`, `oktagon`, `rizin`; `bkfc` 400s `unsupported_org` — the engine runs on the Power Index, which rates MMA only). Every candidate pair inside a division is scored 0–100 for rank proximity, momentum, competitiveness, readiness and story (rematches, trilogy deciders, eliminators): the promotion's official ladder where one exists plus the strongest active unranked Power Index fighters. A promotion with no official ladder (`rizin`) draws only on its current roster — fighters whose latest bout in the promotion is within 450 days — and its pairs are weighted by what each fighter has done there (title fights, wins, career pedigree), so a former champion is not paired with a two-fight prospect. UFC and RIZIN pairs are scored by UFCalendar's booking model (a ranker trained on every realized UFC booking, which also beat the heuristic on RIZIN's own bookings), weighted by the stakes term; other promotions use the fitted heuristic. Fighters already booked leave the board, pairs already booked are excluded, and one fighter appears in at most two slips per division.
          *
          *     Without `division` the list is the cross-division top board (at most two slips per division); with it, that division's best pairs. `meta.divisions` lists the promotion's divisions (an unknown one 400s `invalid_division`), `meta.rankings_date` the ladder snapshot used (null when the promotion has no current ladder). Each slip: `key` (`lo-hi` fighter ids), `a` (red corner — the better-credentialed side) and `b` with `rank` (0 = champion, null = unranked), `power_index`, `streak` (signed: +3 = three straight wins) and `booked`; `score`; `win_probability_a` from the two Power Index ratings; `tags` (`title`, `eliminator`, `coinFlip`, `bothStreaking`, `finishers`, `trilogyDecider`, `unfinishedBusiness`, `rematch`, `unrankedGem`, `bounceBack`, `steppingUp`, `bothDue`, `booked`).
          *
@@ -5986,7 +6001,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -6159,7 +6174,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -6341,7 +6356,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -6533,7 +6548,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -6769,7 +6784,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -6875,7 +6890,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -7012,7 +7027,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -7154,7 +7169,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -7319,7 +7334,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -7442,7 +7457,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -7591,7 +7606,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -7732,7 +7747,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -7872,7 +7887,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -7961,7 +7976,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -8456,7 +8471,7 @@ export interface paths {
         };
         /**
          * Your quota usage
-         * @description Current-month usage for the calling key: tier, requests used/limit, rpm limit, and the reset as both a Unix timestamp (`reset`) and ISO-8601 (`reset_at`); `month` (`YYYYMM`) and `period` (`YYYY-MM`) are the same month in two spellings. On the free 1-day trial, `trial_ends_at` is when access stops (null on a paid plan) — plan around it, not `reset_at`.
+         * @description Current-month usage for the calling key: tier, requests used/limit, rpm limit, and the reset as both a Unix timestamp (`reset`) and ISO-8601 (`reset_at`); `month` (`YYYYMM`) and `period` (`YYYY-MM`) are the same month in two spellings. On the free plan `tier` is `free` (1,000 requests a month, metered per account). On an owner-granted trial, `trial_ends_at` is when the trial ends (null otherwise) — plan around it, not `reset_at`.
          */
         get: {
             parameters: {
@@ -8520,7 +8535,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No active plan on the key's account (`subscription_required`) — choose a plan or start the free 1-day trial at https://www.ufcalendar.com/account/api. */
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -8619,7 +8634,7 @@ export interface components {
          * @description Plan tier.
          * @enum {string}
          */
-        Tier: "trial" | "hobby" | "pro" | "business";
+        Tier: "free" | "trial" | "hobby" | "pro" | "business";
         /**
          * @description Webhook event types.
          * @enum {string}
@@ -10603,7 +10618,7 @@ export interface components {
             reset_at: string;
             /**
              * Format: date-time
-             * @description Trial plans only: when the trial ends and access stops — usually well before `reset_at`. Null on a paid plan.
+             * @description Owner-granted trials only: when the trial ends and the account falls back to the free plan — usually well before `reset_at`. Null on the free plan and on a paid plan.
              */
             trial_ends_at: string | null;
         };
@@ -10621,11 +10636,13 @@ export interface components {
         Plans: {
             currency: string;
             plans: components["schemas"]["Plan"][];
-            trial: {
-                hours: number;
-                requests: number;
+            free_plan: {
+                requests_per_month: number;
+                rpm: number;
+                key_limit: number;
                 card_required: boolean;
-                per_account: number;
+                /** @description Always false: the free plan never expires. */
+                expires: boolean;
                 start_url: string;
             };
             mcp: {

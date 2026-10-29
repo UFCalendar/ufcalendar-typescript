@@ -8,13 +8,13 @@ The [MMA Fight Data API by UFCalendar](https://www.ufcalendar.com/developers) (t
 npm install @ufcalendar/sdk
 ```
 
-Get a key (free 1-day trial, 100 requests, no card) at <https://www.ufcalendar.com/account/api?trial=1>. Paid plans from $19/month for 30,000 requests (Pro $49 for 200,000, Business $149 for 1,000,000) — hard caps, no overage.
+Get a free key at <https://www.ufcalendar.com/account/api?trial=1> — the free plan is 1,000 requests a month, no card, never expires. Paid plans from $19/month for 30,000 requests (Pro $49 for 200,000, Business $149 for 1,000,000) — hard caps, no overage.
 
 ## Quickstart in 3 lines
 
 ```ts
 import { FightAPI } from '@ufcalendar/sdk';
-const api = new FightAPI('ufcalendar_...'); // free 1-day trial key, no card
+const api = new FightAPI('ufcalendar_...'); // free-plan key, no card
 for await (const ev of api.events({ org: 'ufc', limit: 1 })) console.log(ev.title); // the next UFC card
 ```
 
@@ -55,7 +55,7 @@ List endpoints are **async generators** that follow `meta.pagination.next_cursor
 
 | Method | Endpoint |
 |---|---|
-| `plans()` | `GET /v1/plans` — plans, quotas, trial terms, MCP endpoint (no key required) |
+| `plans()` | `GET /v1/plans` — plans (Free first), quotas, free-plan terms, MCP endpoint (no key required) |
 | `orgs()` / `org(slug)` | `GET /v1/orgs` / `…/{slug}` |
 | `events({ org, status, from, to, order, isTitleCard, isPpv, include: ['headline'], limit })` | `GET /v1/events` (paginated; `headline` = each card's main event and its result) |
 | `event(slug, { include: ['eta', 'odds'] })` / `eventChanges(slug)` | `GET /v1/events/{slug}` / `…/changes` (`eta` = per-bout estimated start; `odds` = each bout's latest consensus line) |

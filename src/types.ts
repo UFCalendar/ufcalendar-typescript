@@ -1049,11 +1049,13 @@ export interface Plan {
 export interface Plans {
   currency: string;
   plans: Plan[];
-  trial: {
-    hours: number;
-    requests: number;
+  /** The permanent free plan (2026-10-29): 1,000 requests a month, no card, never expires. */
+  free_plan: {
+    requests_per_month: number;
+    rpm: number;
+    key_limit: number;
     card_required: boolean;
-    per_account: number;
+    expires: boolean;
     start_url: string;
   };
   mcp: {
