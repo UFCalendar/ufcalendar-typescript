@@ -720,6 +720,9 @@ export interface CareerBout {
   time_seconds: number | null;
   weight_class: string | null;
   sport: string | null;
+  /** UFCalendar fantasy points for this fighter's corner — settled
+   * launch-promotion bouts with per-fight totals; null otherwise. */
+  fantasy_points: number | null;
   [k: string]: unknown;
 }
 
@@ -1214,4 +1217,110 @@ export interface Article {
   locale: ArticleLocale;
   /** Delivered language: the translation when one exists, English otherwise. */
   served_locale: ArticleLocale;
+}
+
+/* ── fantasy points + stats quality ─────────────────────────────────── */
+
+/** Points per scoring category; a null category scored nothing. */
+export interface FantasyBreakdown {
+  /** Total strikes landed × 0.2. */
+  strikes: number | null;
+  /** Significant strikes landed × 0.2 (on top of the total-strike point). */
+  sig_strikes: number | null;
+  /** Control time × 0.03 per second. */
+  control: number | null;
+  /** Takedowns landed × 5. */
+  takedowns: number | null;
+  /** Reversals × 5. */
+  reversals: number | null;
+  /** Knockdowns × 10. */
+  knockdowns: number | null;
+  /** R1 finish 90 · R2 70 · R3 45 · R4/R5 40 · decision win 30; 0 for a loss, draw, NC or DQ win. */
+  win_bonus: number | null;
+  /** 25 for a finish inside the first 60 s of round 1. */
+  quick_win_bonus: number | null;
+}
+
+/** UFCalendar fantasy points for one corner of one bout. */
+export interface Fantasy {
+  points: number;
+  breakdown: FantasyBreakdown;
+  /** false = a stat is missing or the bout is not settled; `points` is then a floor. */
+  complete: boolean;
+}
+
+/** One corner's per-fight totals (`GET /v1/fights/{id}/stats`). */
+export interface FightStatLine {
+  fighter_id: number;
+  fighter_position: number;
+  corner: 'a' | 'b' | null;
+  knockdowns: number | null;
+  sig_strikes_landed: number | null;
+  sig_strikes_attempted: number | null;
+  total_strikes_landed: number | null;
+  total_strikes_attempted: number | null;
+  takedowns_landed: number | null;
+  takedowns_attempted: number | null;
+  submission_attempts: number | null;
+  reversals: number | null;
+  control_time_sec: number | null;
+  fantasy: Fantasy;
+  [k: string]: unknown;
+}
+
+/** `meta.quality` on `GET /v1/fights/{id}/stats` (read `lastMeta.quality`). */
+export interface StatsQuality {
+  has_totals: boolean;
+  has_rounds: boolean;
+  has_position_data: boolean;
+  /** Round sums of sig strikes / takedowns / knockdowns equal the totals; null with no rounds. */
+  rounds_sum_matches_totals: boolean | null;
+}
+
+/* ── referees ───────────────────────────────────────────────────────── */
+
+export interface Referee {
+  /** A slug of the name — spelling variants fold together. */
+  slug: string;
+  name: string;
+  bouts: number;
+  orgs: string[];
+  by_org: Array<{ org: string; bouts: number }>;
+  first_bout: string | null;
+  last_bout: string | null;
+  /** (KO/TKO + submission) / bouts, 0–1. */
+  finish_rate: number | null;
+  methods: { ko_tko: number; submission: number; decision: number; other: number };
+  avg_fight_time_sec: number | null;
+}
+
+/** One row of `GET /v1/referees/{slug}/fights`: a bout plus its event. */
+export type RefereeFightRow = FightSearchRow;
+
+/* ── coverage ───────────────────────────────────────────────────────── */
+
+export interface CoverageCounts {
+  events: number;
+  fights_completed: number;
+  fights_with_stats: number;
+  fights_with_rounds: number;
+  fights_with_scorecards: number;
+  fights_with_odds: number;
+  stats_rate: number | null;
+  rounds_rate: number | null;
+  scorecards_rate: number | null;
+  odds_rate: number | null;
+}
+
+export interface CoverageYear extends CoverageCounts {
+  year: number;
+}
+
+/** One promotion's row of `GET /v1/coverage`. */
+export interface OrgCoverage {
+  org: string;
+  last_result_at: string | null;
+  totals: CoverageCounts;
+  /** Newest first. */
+  years: CoverageYear[];
 }

@@ -2323,6 +2323,10 @@ export interface paths {
         /**
          * Per-fight totals
          * @description Both corners: knockdowns, significant/total strikes, takedowns, submission attempts, reversals, control time, and target/position splits (head/body/leg, distance/clinch/ground) where the source provides them. Each line carries `corner` (`a` = the bout's `fighter_a`, `b` = `fighter_b`) beside the stored `fighter_position` (1/2). `distance_time_sec`, `clinch_time_sec`, `ground_time_sec` (integers, nullable) are seconds spent at distance / in the clinch / on the ground, and can appear alongside official strike counts on any org (position time is filled in even where the rest of the row comes from the official stats).
+         *
+         *     **UFCalendar fantasy points** (`fantasy` on each line): a classic daily-fantasy-style MMA score for that corner — total strikes landed +0.2, significant strikes landed +0.2 (on top), control time +0.03 per second, takedown +5, reversal +5, knockdown +10; win bonus R1 finish +90, R2 finish +70, R3 finish +45, R4/R5 finish +40, decision win +30; quick-win bonus +25 for a finish inside the first 60 seconds of R1. A finish is KO/TKO or submission; a loss, draw, no contest or DQ win earns no bonus. `fantasy.breakdown` gives the points per category; a category the source does not publish is null and scores nothing, and `fantasy.complete` is then false (`points` is a floor, never a guess) — also false until the bout is settled. Reversals are the one exception: only some promotions publish them, so a missing reversal count never makes a line incomplete.
+         *
+         *     **Data-quality flags** (`meta.quality`): `has_totals`, `has_rounds`, `has_position_data` (distance/clinch/ground splits or position time), and `rounds_sum_matches_totals` — per corner, do the round sums of significant strikes, takedowns and knockdowns equal the totals (null when there are no rounds or nothing comparable). Filter on it before charting.
          */
         get: {
             parameters: {
@@ -2353,6 +2357,109 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
+                        /**
+                         * @example {
+                         *       "data": [
+                         *         {
+                         *           "fighter_id": 1665,
+                         *           "fighter_position": 1,
+                         *           "knockdowns": 1,
+                         *           "sig_strikes_landed": 96,
+                         *           "sig_strikes_attempted": 119,
+                         *           "total_strikes_landed": 104,
+                         *           "total_strikes_attempted": 128,
+                         *           "takedowns_landed": 1,
+                         *           "takedowns_attempted": 1,
+                         *           "submission_attempts": 0,
+                         *           "reversals": 0,
+                         *           "control_time_sec": 231,
+                         *           "distance_time_sec": 625,
+                         *           "clinch_time_sec": 20,
+                         *           "ground_time_sec": 230,
+                         *           "head_landed": 70,
+                         *           "head_attempted": 91,
+                         *           "body_landed": 16,
+                         *           "body_attempted": 18,
+                         *           "leg_landed": 10,
+                         *           "leg_attempted": 10,
+                         *           "distance_landed": 54,
+                         *           "distance_attempted": 70,
+                         *           "clinch_landed": 2,
+                         *           "clinch_attempted": 3,
+                         *           "ground_landed": 40,
+                         *           "ground_attempted": 46,
+                         *           "corner": "a",
+                         *           "fantasy": {
+                         *             "points": 106.93,
+                         *             "breakdown": {
+                         *               "strikes": 20.8,
+                         *               "sig_strikes": 19.2,
+                         *               "control": 6.93,
+                         *               "takedowns": 5,
+                         *               "reversals": 0,
+                         *               "knockdowns": 10,
+                         *               "win_bonus": 45,
+                         *               "quick_win_bonus": 0
+                         *             },
+                         *             "complete": true
+                         *           }
+                         *         },
+                         *         {
+                         *           "fighter_id": 1946,
+                         *           "fighter_position": 2,
+                         *           "knockdowns": 0,
+                         *           "sig_strikes_landed": 37,
+                         *           "sig_strikes_attempted": 89,
+                         *           "total_strikes_landed": 42,
+                         *           "total_strikes_attempted": 94,
+                         *           "takedowns_landed": 0,
+                         *           "takedowns_attempted": 0,
+                         *           "submission_attempts": 0,
+                         *           "reversals": 0,
+                         *           "control_time_sec": 0,
+                         *           "distance_time_sec": 625,
+                         *           "clinch_time_sec": 20,
+                         *           "ground_time_sec": 230,
+                         *           "head_landed": 24,
+                         *           "head_attempted": 75,
+                         *           "body_landed": 7,
+                         *           "body_attempted": 8,
+                         *           "leg_landed": 6,
+                         *           "leg_attempted": 6,
+                         *           "distance_landed": 32,
+                         *           "distance_attempted": 83,
+                         *           "clinch_landed": 4,
+                         *           "clinch_attempted": 5,
+                         *           "ground_landed": 1,
+                         *           "ground_attempted": 1,
+                         *           "corner": "b",
+                         *           "fantasy": {
+                         *             "points": 15.8,
+                         *             "breakdown": {
+                         *               "strikes": 8.4,
+                         *               "sig_strikes": 7.4,
+                         *               "control": 0,
+                         *               "takedowns": 0,
+                         *               "reversals": 0,
+                         *               "knockdowns": 0,
+                         *               "win_bonus": 0,
+                         *               "quick_win_bonus": 0
+                         *             },
+                         *             "complete": true
+                         *           }
+                         *         }
+                         *       ],
+                         *       "meta": {
+                         *         "fight_id": 60381,
+                         *         "quality": {
+                         *           "has_totals": true,
+                         *           "has_rounds": true,
+                         *           "has_position_data": true,
+                         *           "rounds_sum_matches_totals": true
+                         *         }
+                         *       }
+                         *     }
+                         */
                         "application/json": components["schemas"]["FightStatsResponse"];
                     };
                 };
@@ -3964,6 +4071,689 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/referees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Referee directory
+         * @description Every referee who has worked a settled launch-promotion bout, busiest first, with their career shape: bouts, promotions (`by_org`), first and last bout, `finish_rate` (KO/TKO + submission share), the method breakdown (`methods`: `ko_tko`, `submission`, `decision`, `other` = draws, no contests, disqualifications) and `avg_fight_time_sec` (elapsed time over bouts with a readable final round and clock, at the sport's standard round length).
+         *
+         *     The referee is named on the bout record, not in a table of its own, so the id is a **slug of the name** (the site's slug rule): spelling variants fold into one referee, and two officials who share a name share a slug. Filter with `q` (accent- and spacing-insensitive name match) and `org`.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Name fragment, accent- and spacing-insensitive. */
+                    q?: string;
+                    /** @description Launch org slug: `ufc`, `pfl`, `oktagon`, `bkfc` or `rizin`. Staged orgs 400 until promoted. */
+                    org?: "ufc" | "pfl" | "oktagon" | "bkfc" | "rizin";
+                    /** @description Opaque cursor from `meta.pagination.next_cursor`. */
+                    cursor?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Referees page */
+                200: {
+                    headers: {
+                        /** @description Weak validator over the body, e.g. `W/"GKrimLo826WBqG27jbNFsW2ZHmA"`. Send it back as `If-None-Match` to get a 304. */
+                        ETag?: string;
+                        /** @description Always `private, no-cache`. */
+                        "Cache-Control"?: string;
+                        /** @description Monthly request quota of the plan. */
+                        "X-RateLimit-Limit"?: number;
+                        /** @description Requests left this month. */
+                        "X-RateLimit-Remaining"?: number;
+                        /** @description Unix seconds of the monthly reset. */
+                        "X-RateLimit-Reset"?: number;
+                        /** @description Quote it to support; the same id is in every error body. */
+                        "x-request-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "data": [
+                         *         {
+                         *           "slug": "herb-dean",
+                         *           "name": "Herb Dean",
+                         *           "bouts": 1383,
+                         *           "orgs": [
+                         *             "pfl",
+                         *             "ufc"
+                         *           ],
+                         *           "by_org": [
+                         *             {
+                         *               "org": "ufc",
+                         *               "bouts": 1373
+                         *             },
+                         *             {
+                         *               "org": "pfl",
+                         *               "bouts": 10
+                         *             }
+                         *           ],
+                         *           "first_bout": "2004-04-02",
+                         *           "last_bout": "2026-10-10",
+                         *           "finish_rate": 0.5633,
+                         *           "methods": {
+                         *             "ko_tko": 503,
+                         *             "submission": 276,
+                         *             "decision": 581,
+                         *             "other": 23
+                         *           },
+                         *           "avg_fight_time_sec": 642
+                         *         }
+                         *       ],
+                         *       "meta": {
+                         *         "total": 418,
+                         *         "pagination": {
+                         *           "next_cursor": "eyJpZCI6Im1hcmMtZ29kZGFyZCIsInAiOjJ9",
+                         *           "has_more": true,
+                         *           "limit": 3
+                         *         }
+                         *       }
+                         *     }
+                         */
+                        "application/json": components["schemas"]["RefereesPageResponse"];
+                    };
+                };
+                /** @description Not Modified — `If-None-Match` matched the current weak `ETag`. Empty body. */
+                304: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Invalid input (`invalid_org`, `invalid_cursor`). */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Missing/invalid API key (`unauthorized`). */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found (`not_found`; staged-org data 404s until the org is promoted). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rate limited (`rate_limited`) or monthly quota reached (`quota_exceeded`). Honor `Retry-After`. */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Something broke on our side (`internal_error`). It has been logged under the `request_id`. */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/referees/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One referee
+         * @description A single referee's career aggregates by slug (e.g. `herb-dean`). Same shape as a directory row. A spelling that folds to the same slug (`Herb  Dean`) resolves too.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Referee slug from `/v1/referees`. */
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Referee */
+                200: {
+                    headers: {
+                        /** @description Weak validator over the body, e.g. `W/"GKrimLo826WBqG27jbNFsW2ZHmA"`. Send it back as `If-None-Match` to get a 304. */
+                        ETag?: string;
+                        /** @description Always `private, no-cache`. */
+                        "Cache-Control"?: string;
+                        /** @description Monthly request quota of the plan. */
+                        "X-RateLimit-Limit"?: number;
+                        /** @description Requests left this month. */
+                        "X-RateLimit-Remaining"?: number;
+                        /** @description Unix seconds of the monthly reset. */
+                        "X-RateLimit-Reset"?: number;
+                        /** @description Quote it to support; the same id is in every error body. */
+                        "x-request-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "data": {
+                         *         "slug": "herb-dean",
+                         *         "name": "Herb Dean",
+                         *         "bouts": 1383,
+                         *         "orgs": [
+                         *           "pfl",
+                         *           "ufc"
+                         *         ],
+                         *         "by_org": [
+                         *           {
+                         *             "org": "ufc",
+                         *             "bouts": 1373
+                         *           },
+                         *           {
+                         *             "org": "pfl",
+                         *             "bouts": 10
+                         *           }
+                         *         ],
+                         *         "first_bout": "2004-04-02",
+                         *         "last_bout": "2026-10-10",
+                         *         "finish_rate": 0.5633,
+                         *         "methods": {
+                         *           "ko_tko": 503,
+                         *           "submission": 276,
+                         *           "decision": 581,
+                         *           "other": 23
+                         *         },
+                         *         "avg_fight_time_sec": 642
+                         *       },
+                         *       "meta": {}
+                         *     }
+                         */
+                        "application/json": components["schemas"]["RefereeResponse"];
+                    };
+                };
+                /** @description Not Modified — `If-None-Match` matched the current weak `ETag`. Empty body. */
+                304: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Missing/invalid API key (`unauthorized`). */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found (`not_found`; staged-org data 404s until the org is promoted). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rate limited (`rate_limited`) or monthly quota reached (`quota_exceeded`). Honor `Retry-After`. */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Something broke on our side (`internal_error`). It has been logged under the `request_id`. */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/referees/{slug}/fights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bouts a referee worked
+         * @description Every settled launch-promotion bout this referee worked, newest first — the bout (same shape as `/v1/fights/{id}`) with its `event`. `meta.referee` repeats the referee's aggregates. Cursor-paginated (`limit` 1–100, default 25).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Opaque cursor from `meta.pagination.next_cursor`. */
+                    cursor?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path: {
+                    /** @description Referee slug from `/v1/referees`. */
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Bouts, newest first */
+                200: {
+                    headers: {
+                        /** @description Weak validator over the body, e.g. `W/"GKrimLo826WBqG27jbNFsW2ZHmA"`. Send it back as `If-None-Match` to get a 304. */
+                        ETag?: string;
+                        /** @description Always `private, no-cache`. */
+                        "Cache-Control"?: string;
+                        /** @description Monthly request quota of the plan. */
+                        "X-RateLimit-Limit"?: number;
+                        /** @description Requests left this month. */
+                        "X-RateLimit-Remaining"?: number;
+                        /** @description Unix seconds of the monthly reset. */
+                        "X-RateLimit-Reset"?: number;
+                        /** @description Quote it to support; the same id is in every error body. */
+                        "x-request-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "data": [
+                         *         {
+                         *           "id": 93271,
+                         *           "ordering": 10,
+                         *           "card_section": "prelims",
+                         *           "sport": "mma",
+                         *           "weight_class": "Heavyweight",
+                         *           "division_slug": "heavyweight",
+                         *           "is_title": false,
+                         *           "is_main": false,
+                         *           "scheduled_rounds": 3,
+                         *           "status": "completed",
+                         *           "fighter_a": {
+                         *             "id": 343,
+                         *             "slug": "allen-frye-jr",
+                         *             "name": "Allen Frye Jr.",
+                         *             "nickname": "AJ",
+                         *             "nationality": "United States",
+                         *             "country_code": "US"
+                         *           },
+                         *           "fighter_b": {
+                         *             "id": 48658,
+                         *             "slug": "rj-harris",
+                         *             "name": "RJ Harris",
+                         *             "nickname": "The Hammer",
+                         *             "nationality": "United States",
+                         *             "country_code": "US"
+                         *           },
+                         *           "result": {
+                         *             "winner_fighter_id": 343,
+                         *             "method": "KO/TKO",
+                         *             "method_normalized": "ko_tko",
+                         *             "finish_detail": null,
+                         *             "round": 1,
+                         *             "time": "2:59",
+                         *             "time_seconds": 179,
+                         *             "details": null
+                         *           },
+                         *           "referee": "Herb Dean",
+                         *           "bonus": null,
+                         *           "event": {
+                         *             "id": 3527,
+                         *             "slug": "ufc-fight-night-2026-10-11",
+                         *             "title": "UFC Fight Night: Allen vs Duncan",
+                         *             "org": "ufc",
+                         *             "starts_at": "2026-10-10T21:00:00.000Z"
+                         *           }
+                         *         }
+                         *       ],
+                         *       "meta": {
+                         *         "referee": {
+                         *           "slug": "herb-dean",
+                         *           "name": "Herb Dean",
+                         *           "bouts": 1383,
+                         *           "orgs": [
+                         *             "pfl",
+                         *             "ufc"
+                         *           ],
+                         *           "by_org": [
+                         *             {
+                         *               "org": "ufc",
+                         *               "bouts": 1373
+                         *             },
+                         *             {
+                         *               "org": "pfl",
+                         *               "bouts": 10
+                         *             }
+                         *           ],
+                         *           "first_bout": "2004-04-02",
+                         *           "last_bout": "2026-10-10",
+                         *           "finish_rate": 0.5633,
+                         *           "methods": {
+                         *             "ko_tko": 503,
+                         *             "submission": 276,
+                         *             "decision": 581,
+                         *             "other": 23
+                         *           },
+                         *           "avg_fight_time_sec": 642
+                         *         },
+                         *         "pagination": {
+                         *           "next_cursor": "eyJpZCI6OTMyMDB9",
+                         *           "has_more": true,
+                         *           "limit": 2
+                         *         }
+                         *       }
+                         *     }
+                         */
+                        "application/json": components["schemas"]["RefereeFightsResponse"];
+                    };
+                };
+                /** @description Not Modified — `If-None-Match` matched the current weak `ETag`. Empty body. */
+                304: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Invalid input (`invalid_cursor`). */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Missing/invalid API key (`unauthorized`). */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found (`not_found`; staged-org data 404s until the org is promoted). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rate limited (`rate_limited`) or monthly quota reached (`quota_exceeded`). Honor `Retry-After`. */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Something broke on our side (`internal_error`). It has been logged under the `request_id`. */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Data coverage per promotion
+         * @description What the database actually holds, computed from it (refreshed every 30 minutes) rather than quoted from a marketing page: per launch promotion and per UTC year, the non-cancelled `events` that have started, the settled bouts (`fights_completed`: completed or no contest) and how many of them carry per-fight totals (`fights_with_stats`), round-by-round lines (`fights_with_rounds`), at least one official commission scorecard (`fights_with_scorecards` — a finish has no cards, so this tops out at the decision share) and a consensus odds line across the sportsbooks we track (`fights_with_odds`; information only, not betting advice), each with its 0–1 `*_rate`. `totals` sums every year; `last_result_at` is when the promotion's latest result was recorded. Pass `org` for one promotion.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Launch org slug: `ufc`, `pfl`, `oktagon`, `bkfc` or `rizin`. Staged orgs 400 until promoted. */
+                    org?: "ufc" | "pfl" | "oktagon" | "bkfc" | "rizin";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Coverage per promotion */
+                200: {
+                    headers: {
+                        /** @description Weak validator over the body, e.g. `W/"GKrimLo826WBqG27jbNFsW2ZHmA"`. Send it back as `If-None-Match` to get a 304. */
+                        ETag?: string;
+                        /** @description Always `private, no-cache`. */
+                        "Cache-Control"?: string;
+                        /** @description Monthly request quota of the plan. */
+                        "X-RateLimit-Limit"?: number;
+                        /** @description Requests left this month. */
+                        "X-RateLimit-Remaining"?: number;
+                        /** @description Unix seconds of the monthly reset. */
+                        "X-RateLimit-Reset"?: number;
+                        /** @description Quote it to support; the same id is in every error body. */
+                        "x-request-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "data": [
+                         *         {
+                         *           "org": "ufc",
+                         *           "last_result_at": "2026-10-30T17:46:34.317Z",
+                         *           "totals": {
+                         *             "events": 889,
+                         *             "fights_completed": 9467,
+                         *             "fights_with_stats": 9441,
+                         *             "fights_with_rounds": 9396,
+                         *             "fights_with_scorecards": 4740,
+                         *             "fights_with_odds": 6326,
+                         *             "stats_rate": 0.9973,
+                         *             "rounds_rate": 0.9925,
+                         *             "scorecards_rate": 0.5007,
+                         *             "odds_rate": 0.6682
+                         *           },
+                         *           "years": [
+                         *             {
+                         *               "year": 2026,
+                         *               "events": 48,
+                         *               "fights_completed": 526,
+                         *               "fights_with_stats": 526,
+                         *               "fights_with_rounds": 526,
+                         *               "fights_with_scorecards": 342,
+                         *               "fights_with_odds": 487,
+                         *               "stats_rate": 1,
+                         *               "rounds_rate": 1,
+                         *               "scorecards_rate": 0.6502,
+                         *               "odds_rate": 0.9259
+                         *             },
+                         *             {
+                         *               "year": 2025,
+                         *               "events": 53,
+                         *               "fights_completed": 575,
+                         *               "fights_with_stats": 572,
+                         *               "fights_with_rounds": 571,
+                         *               "fights_with_scorecards": 374,
+                         *               "fights_with_odds": 454,
+                         *               "stats_rate": 0.9948,
+                         *               "rounds_rate": 0.993,
+                         *               "scorecards_rate": 0.6504,
+                         *               "odds_rate": 0.7896
+                         *             }
+                         *           ]
+                         *         }
+                         *       ],
+                         *       "meta": {
+                         *         "org": null,
+                         *         "computed_at": "2026-10-31T13:09:12.785Z",
+                         *         "note": "Settled bouts (completed or no contest) of non-cancelled events that have started, by UTC year of the first bell. A bout counts once per column when it has per-fight totals, round-by-round lines, at least one official commission scorecard, or a consensus odds line across the sportsbooks we track (information only, not betting advice). Rates are 0–1 fractions of fights_completed."
+                         *       }
+                         *     }
+                         */
+                        "application/json": components["schemas"]["CoverageResponse"];
+                    };
+                };
+                /** @description Not Modified — `If-None-Match` matched the current weak `ETag`. Empty body. */
+                304: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Invalid input (`invalid_org`). */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Missing/invalid API key (`unauthorized`). */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (1,000 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found (`not_found`; staged-org data 404s until the org is promoted). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rate limited (`rate_limited`) or monthly quota reached (`quota_exceeded`). Honor `Retry-After`. */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Something broke on our side (`internal_error`). It has been logged under the `request_id`. */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/fighters": {
         parameters: {
             query?: never;
@@ -4441,7 +5231,7 @@ export interface paths {
         };
         /**
          * Complete career timeline
-         * @description The fighter's FULL multi-promotion career: native tracked bouts (richest data, `source: "native"`) merged with the wider multi-promotion career record (`source: "history"`). Spans every promotion they fought in — not just launch orgs. **Every key is present on every row** (null when unknown), and each row carries `status` (one vocabulary across both sources: `win`, `loss`, `draw`, `no_contest`, `cancelled`, `upcoming`, `unknown`), `method_normalized`, `time_seconds` and an `opponent` object (`{id, slug, name}`, ids only on native rows) beside the raw `result` / `method` / `time` strings. Newest first; `meta.truncated` is true when the history rows hit their 500-row cap. `source_slug` names the publisher: `ufcalendar` on native rows; on history rows an official publisher (`ufc-official`, `wikipedia`, a promotion's `*-official`), else `public-records`.
+         * @description The fighter's FULL multi-promotion career: native tracked bouts (richest data, `source: "native"`) merged with the wider multi-promotion career record (`source: "history"`). Spans every promotion they fought in — not just launch orgs. **Every key is present on every row** (null when unknown), and each row carries `status` (one vocabulary across both sources: `win`, `loss`, `draw`, `no_contest`, `cancelled`, `upcoming`, `unknown`), `method_normalized`, `time_seconds` and an `opponent` object (`{id, slug, name}`, ids only on native rows) beside the raw `result` / `method` / `time` strings. `fantasy_points` is the fighter's UFCalendar fantasy points for that bout (the score `/v1/fights/{id}/stats` breaks down) on settled launch-promotion bouts with per-fight totals, null otherwise. Newest first; `meta.truncated` is true when the history rows hit their 500-row cap. `source_slug` names the publisher: `ufcalendar` on native rows; on history rows an official publisher (`ufc-official`, `wikipedia`, a promotion's `*-official`), else `public-records`.
          */
         get: {
             parameters: {
@@ -4504,7 +5294,8 @@ export interface paths {
                          *             "id": 1946,
                          *             "slug": "stipe-miocic",
                          *             "name": "Stipe Miocic"
-                         *           }
+                         *           },
+                         *           "fantasy_points": 106.93
                          *         }
                          *       ],
                          *       "meta": {
@@ -8917,7 +9708,7 @@ export interface components {
             /** @description The current UFCalendar consensus line, the closing line once the bout is settled (`/v1/fights/{id}?include=odds` only); null when the bout is unpriced. */
             odds?: components["schemas"]["OddsPair"] | null;
         };
-        /** @description Per-fight totals for ONE corner. Target/position splits are null where the source does not log them. */
+        /** @description Per-fight totals for ONE corner. Target/position splits are null where the source does not log them. `fantasy` is the corner's UFCalendar fantasy points. */
         FightStatLine: {
             fighter_id: number;
             /** @description Stored corner encoding: 1 = `fighter_a`, 2 = `fighter_b`. Prefer `corner`. */
@@ -8956,6 +9747,45 @@ export interface components {
             clinch_attempted: number | null;
             ground_landed: number | null;
             ground_attempted: number | null;
+            fantasy: components["schemas"]["Fantasy"];
+        };
+        /** @description Points per scoring category. A null category scored nothing. */
+        FantasyBreakdown: {
+            /** @description Total strikes landed × 0.2. Null when the source does not publish total strikes. */
+            strikes: number | null;
+            /** @description Significant strikes landed × 0.2 (on top of the total-strike point). */
+            sig_strikes: number | null;
+            /** @description Control time × 0.03 per second. */
+            control: number | null;
+            /** @description Takedowns landed × 5. */
+            takedowns: number | null;
+            /** @description Reversals × 5. */
+            reversals: number | null;
+            /** @description Knockdowns × 10. */
+            knockdowns: number | null;
+            /** @description R1 finish 90 · R2 finish 70 · R3 finish 45 · R4/R5 finish 40 · decision win 30; 0 for a loss, draw, no contest or a win by disqualification. Null when the bout is not settled or a win's method/round cannot be read. */
+            win_bonus: number | null;
+            /** @description 25 for a finish inside the first 60 seconds of round 1, else 0. Null when it cannot be read. */
+            quick_win_bonus: number | null;
+        };
+        /** @description UFCalendar fantasy points for one corner of one bout — a classic daily-fantasy-style MMA score: total strikes landed +0.2, significant strikes landed +0.2, control +0.03/s, takedown +5, reversal +5, knockdown +10; win bonus R1 finish +90, R2 +70, R3 +45, R4/R5 +40, decision +30; quick win (finish in the first 60 s of R1) +25. No bonus for a loss, draw, no contest or DQ win. */
+        Fantasy: {
+            /** @description Sum of the breakdown (2 decimals). */
+            points: number;
+            breakdown: components["schemas"]["FantasyBreakdown"];
+            /** @description false when a category is null (the source does not publish that stat, the bout is not settled, or the result cannot be read) — `points` is then a floor, never a guess. Reversals are the exception: only some promotions publish them, so a null `reversals` never makes the line incomplete. */
+            complete: boolean;
+        };
+        /** @description Data-quality flags for one bout's statistics — read before charting. */
+        StatsQuality: {
+            /** @description Per-fight totals exist (`data` is non-empty). */
+            has_totals: boolean;
+            /** @description Round-by-round lines exist (`/v1/fights/{id}/rounds`). */
+            has_rounds: boolean;
+            /** @description Distance/clinch/ground strike splits or position time are present on the totals. */
+            has_position_data: boolean;
+            /** @description Per corner, the round sums of significant strikes, takedowns and knockdowns equal the totals (compared only where the total and every round carry the stat). Null when there are no rounds or nothing comparable. */
+            rounds_sum_matches_totals: boolean | null;
         };
         /** @description One corner's line for one round. */
         RoundStatLine: {
@@ -9153,6 +9983,105 @@ export interface components {
             cards: components["schemas"]["JudgeCard"][];
             /** @description Cards that disagree with the official result. */
             dissenting_judges: components["schemas"]["DissentingJudge"][];
+        };
+        /** @description How the bouts this referee worked ended. */
+        RefereeMethods: {
+            ko_tko: number;
+            submission: number;
+            decision: number;
+            /** @description Draws, no contests, disqualifications and unreadable methods. */
+            other: number;
+        };
+        RefereeOrgCount: {
+            org: string;
+            bouts: number;
+        };
+        /** @description One referee's career shape across the launch promotions. */
+        Referee: {
+            /** @description Stable id: the name through the site's slug rule, so spelling variants fold together. Two officials who share a name share a slug. */
+            slug: string;
+            /** @description The most-used spelling. */
+            name: string;
+            /** @description Settled launch-promotion bouts refereed. */
+            bouts: number;
+            /** @description Promotion slugs, alphabetical. */
+            orgs: string[];
+            /** @description Bouts per promotion, busiest first. */
+            by_org: components["schemas"]["RefereeOrgCount"][];
+            /**
+             * Format: date
+             * @description UTC date of the first bout's event.
+             */
+            first_bout: string | null;
+            /**
+             * Format: date
+             * @description UTC date of the latest bout's event.
+             */
+            last_bout: string | null;
+            /** @description (KO/TKO + submission) / bouts, 0–1. */
+            finish_rate: number | null;
+            methods: components["schemas"]["RefereeMethods"];
+            /** @description Mean elapsed fight time over bouts with a readable final round and clock, assuming the sport's standard round length (5 min MMA, 2 min bare-knuckle). */
+            avg_fight_time_sec: number | null;
+        };
+        /** @description Counts over settled bouts plus the share of them carrying each dataset. */
+        CoverageCounts: {
+            /** @description Non-cancelled events that have started. */
+            events: number;
+            /** @description Settled bouts (completed or no contest). */
+            fights_completed: number;
+            /** @description Settled bouts with per-fight totals. */
+            fights_with_stats: number;
+            /** @description Settled bouts with round-by-round lines. */
+            fights_with_rounds: number;
+            /** @description Settled bouts with at least one official commission scorecard (a finish has none, so this tops out at the decision share). */
+            fights_with_scorecards: number;
+            /** @description Settled bouts with a consensus odds line across the sportsbooks we track (information only, not betting advice). */
+            fights_with_odds: number;
+            /** @description fights_with_stats / fights_completed, 0–1; null with no settled bouts. */
+            stats_rate: number | null;
+            /** @description fights_with_rounds / fights_completed. */
+            rounds_rate: number | null;
+            /** @description fights_with_scorecards / fights_completed. */
+            scorecards_rate: number | null;
+            /** @description fights_with_odds / fights_completed. */
+            odds_rate: number | null;
+        };
+        CoverageYear: {
+            /** @description UTC year of the first bell. */
+            year: number;
+            /** @description Non-cancelled events that have started. */
+            events: number;
+            /** @description Settled bouts (completed or no contest). */
+            fights_completed: number;
+            /** @description Settled bouts with per-fight totals. */
+            fights_with_stats: number;
+            /** @description Settled bouts with round-by-round lines. */
+            fights_with_rounds: number;
+            /** @description Settled bouts with at least one official commission scorecard (a finish has none, so this tops out at the decision share). */
+            fights_with_scorecards: number;
+            /** @description Settled bouts with a consensus odds line across the sportsbooks we track (information only, not betting advice). */
+            fights_with_odds: number;
+            /** @description fights_with_stats / fights_completed, 0–1; null with no settled bouts. */
+            stats_rate: number | null;
+            /** @description fights_with_rounds / fights_completed. */
+            rounds_rate: number | null;
+            /** @description fights_with_scorecards / fights_completed. */
+            scorecards_rate: number | null;
+            /** @description fights_with_odds / fights_completed. */
+            odds_rate: number | null;
+        };
+        /** @description What the database holds for one promotion. */
+        OrgCoverage: {
+            org: string;
+            /**
+             * Format: date-time
+             * @description When the promotion's latest result was recorded.
+             */
+            last_result_at: string | null;
+            totals: components["schemas"]["CoverageCounts"];
+            /** @description Newest first. */
+            years: components["schemas"]["CoverageYear"][];
         };
         /** @description Roster-search row: identity only (the bio lives on the detail route). */
         FighterListItem: {
@@ -9605,6 +10534,8 @@ export interface components {
             competition_level: string | null;
             /** @description Who published the row: `ufcalendar` for native bouts; on history rows an official publisher's slug (`ufc-official`, `wikipedia`, a promotion's `*-official`), else `public-records`. */
             source_slug: string | null;
+            /** @description UFCalendar fantasy points for this fighter's corner (same score as `fantasy.points` on `/v1/fights/{id}/stats`). Set on settled launch-promotion bouts with per-fight totals, on `/v1/fighters/{idOrSlug}/history` and the timeline `/v1/compare` reads; null otherwise. */
+            fantasy_points: number | null;
         };
         FighterRankingRow: {
             org: string;
@@ -10859,11 +11790,12 @@ export interface components {
                 ignored_params?: string[];
             };
         };
-        /** @description One line per corner (`corner` a then b). Empty when the source has no totals. */
+        /** @description One line per corner (`corner` a then b), each with its `fantasy` points. Empty when the source has no totals. */
         FightStatsResponse: {
             data: components["schemas"]["FightStatLine"][];
             meta: {
                 fight_id: number;
+                quality: components["schemas"]["StatsQuality"];
                 /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
                 ignored_params?: string[];
             };
@@ -10907,6 +11839,48 @@ export interface components {
             meta: {
                 judge: components["schemas"]["Judge"];
                 pagination: components["schemas"]["Pagination"];
+                /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
+                ignored_params?: string[];
+            };
+        };
+        /** @description Busiest first. */
+        RefereesPageResponse: {
+            data: components["schemas"]["Referee"][];
+            meta: {
+                /** @description Referees matching the filters. */
+                total: number;
+                pagination: components["schemas"]["Pagination"];
+                /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
+                ignored_params?: string[];
+            };
+        };
+        RefereeResponse: {
+            data: components["schemas"]["Referee"];
+            meta: components["schemas"]["EmptyMeta"];
+        };
+        /** @description Newest first. */
+        RefereeFightsResponse: {
+            data: components["schemas"]["FightDetail"][];
+            meta: {
+                referee: components["schemas"]["Referee"];
+                pagination: components["schemas"]["Pagination"];
+                /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
+                ignored_params?: string[];
+            };
+        };
+        /** @description One row per launch promotion, in the API's org order. */
+        CoverageResponse: {
+            data: components["schemas"]["OrgCoverage"][];
+            meta: {
+                /** @description The `org=` filter applied; null for every launch promotion. */
+                org: string | null;
+                /**
+                 * Format: date-time
+                 * @description When the counts were computed (refreshed every 30 minutes).
+                 */
+                computed_at: string;
+                /** @description Always present: what is counted. */
+                note: string;
                 /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
                 ignored_params?: string[];
             };

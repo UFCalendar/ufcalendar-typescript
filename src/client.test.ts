@@ -370,6 +370,41 @@ describe('power index, predictions, judges, events enrichments', () => {
     assert.equal(rows[0]!.dissenting_judges[0]!.judge_id, 35);
   });
 
+  it('referees(), referee() and refereeFights() hit the referee routes', async () => {
+    const { calls, fetchImpl } = stub([
+      { body: { data: [{ slug: 'herb-dean', bouts: 1383 }], meta: { pagination: { next_cursor: null, has_more: false } } } },
+      { body: { data: { slug: 'herb-dean', bouts: 1383 }, meta: {} } },
+      { body: { data: [{ id: 93271, event: { id: 3527 } }], meta: { pagination: { next_cursor: null, has_more: false } } } },
+    ]);
+    const api = new FightAPI({ apiKey: 'k', fetch: fetchImpl });
+    const rows = [];
+    for await (const r of api.referees({ org: 'ufc' })) rows.push(r);
+    assert.equal(calls[0]!.url.pathname, '/v1/referees');
+    assert.equal(calls[0]!.url.searchParams.get('org'), 'ufc');
+    assert.equal(rows[0]!.slug, 'herb-dean');
+    assert.equal((await api.referee('herb-dean')).bouts, 1383);
+    assert.equal(calls[1]!.url.pathname, '/v1/referees/herb-dean');
+    const bouts = [];
+    for await (const b of api.refereeFights('herb-dean')) bouts.push(b);
+    assert.equal(calls[2]!.url.pathname, '/v1/referees/herb-dean/fights');
+    assert.equal(bouts[0]!.id, 93271);
+  });
+
+  it('coverage() passes org; fightStats() types fantasy and exposes meta.quality', async () => {
+    const { calls, fetchImpl } = stub([
+      { body: { data: [{ org: 'bkfc', last_result_at: null, totals: {}, years: [] }], meta: { org: 'bkfc' } } },
+      { body: { data: [{ corner: 'a', fantasy: { points: 106.93, complete: true } }], meta: { fight_id: 60381, quality: { rounds_sum_matches_totals: true } } } },
+    ]);
+    const api = new FightAPI({ apiKey: 'k', fetch: fetchImpl });
+    const cov = await api.coverage({ org: 'bkfc' });
+    assert.equal(calls[0]!.url.pathname, '/v1/coverage');
+    assert.equal(calls[0]!.url.searchParams.get('org'), 'bkfc');
+    assert.equal(cov[0]!.org, 'bkfc');
+    const lines = await api.fightStats(60381);
+    assert.equal(lines[0]!.fantasy.points, 106.93);
+    assert.equal((api.lastMeta?.quality as { rounds_sum_matches_totals: boolean }).rounds_sum_matches_totals, true);
+  });
+
   it('leaderboard() sends org + metric and filters', async () => {
     const { calls, fetchImpl } = stub([{ body: { data: [
       { rank: 1, value: 28, value_secondary: null, sample_n: 46, fighter: { id: 17, slug: 'jim-miller', name: 'Jim Miller', nationality: null }, division: null, round_number: null, fight: null, event: null, display_rank: 1, tied: false },

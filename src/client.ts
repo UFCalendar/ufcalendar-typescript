@@ -21,6 +21,10 @@
 import { VERSION } from './version';
 import type {
   Article,
+  FightStatLine,
+  OrgCoverage,
+  Referee,
+  RefereeFightRow,
   ArticleLocale,
   ArticleSummary,
   EventPickem,
@@ -518,9 +522,13 @@ export class FightAPI {
     );
   }
 
-  /** Per-fight totals for both corners. */
-  fightStats(fightId: number | string): Promise<Record<string, unknown>[]> {
-    return this.get<Record<string, unknown>[]>(`fights/${encodeURIComponent(String(fightId))}/stats`);
+  /**
+   * Per-fight totals for both corners, each with `fantasy` — UFCalendar
+   * fantasy points with a per-category breakdown and `complete`. The
+   * data-quality flags ride in `lastMeta.quality` (`StatsQuality`).
+   */
+  fightStats(fightId: number | string): Promise<FightStatLine[]> {
+    return this.get<FightStatLine[]>(`fights/${encodeURIComponent(String(fightId))}/stats`);
   }
 
   /** Round-by-round stat lines for both corners. */
@@ -617,6 +625,39 @@ export class FightAPI {
       {},
       opts,
     );
+  }
+
+  /* ------------------------------------------------------------ referees */
+
+  /**
+   * Every referee who has worked a settled launch-org bout, busiest first:
+   * bouts, promotions, finish rate, method mix and average fight time. The
+   * id is a slug of the name; `q` is accent- and spacing-insensitive.
+   */
+  referees(opts: { q?: string; org?: string; limit?: number } = {}): AsyncGenerator<Referee, void, void> {
+    const { limit, ...params } = opts;
+    return this.#paginate<Referee>('referees', params as Query, { limit });
+  }
+
+  /** One referee's career aggregates, e.g. `referee('herb-dean')`. */
+  referee(slug: string): Promise<Referee> {
+    return this.get<Referee>(`referees/${encodeURIComponent(slug)}`);
+  }
+
+  /** Every settled bout one referee worked, newest first (the bout plus its `event`). */
+  refereeFights(slug: string, opts: { limit?: number } = {}): AsyncGenerator<RefereeFightRow, void, void> {
+    return this.#paginate<RefereeFightRow>(`referees/${encodeURIComponent(slug)}/fights`, {}, opts);
+  }
+
+  /* ------------------------------------------------------------ coverage */
+
+  /**
+   * What the database holds per launch org per year: events, settled bouts
+   * and how many carry stats, round stats, commission scorecards and a
+   * consensus odds line, with `totals` and `last_result_at`.
+   */
+  coverage(opts: { org?: string } = {}): Promise<OrgCoverage[]> {
+    return this.get<OrgCoverage[]>('coverage', opts.org ? { org: opts.org } : undefined);
   }
 
   /* ------------------------------------------------------------ fighters */
