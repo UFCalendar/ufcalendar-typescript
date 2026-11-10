@@ -1052,7 +1052,7 @@ export interface Plan {
 export interface Plans {
   currency: string;
   plans: Plan[];
-  /** The permanent free plan (2026-10-29): 1,000 requests a month, no card, never expires. */
+  /** The permanent free plan (2026-10-29): 100 requests a month, no card, never expires. */
   free_plan: {
     requests_per_month: number;
     rpm: number;

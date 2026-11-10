@@ -240,7 +240,7 @@ export class FightAPI {
         401,
         'no_api_key',
         'No API key. Pass new FightAPI("ufcalendar_...") or set UFCALENDAR_API_KEY. ' +
-          'Keys (free plan: 1,000 requests/month, no card) live at https://www.ufcalendar.com/account/api',
+          'Keys (free plan: 100 requests/month, no card) live at https://www.ufcalendar.com/account/api',
       );
     }
     const headers: Record<string, string> = { Accept: 'application/json', ...this.#headers };
@@ -905,7 +905,7 @@ export class FightAPI {
         401,
         'no_api_key',
         'No API key. Pass new FightAPI("ufcalendar_...") or set UFCALENDAR_API_KEY. ' +
-          'Keys (free plan: 1,000 requests/month, no card) live at https://www.ufcalendar.com/account/api',
+          'Keys (free plan: 100 requests/month, no card) live at https://www.ufcalendar.com/account/api',
       );
     }
     return `${this.baseUrl}/calendar/${encodeURIComponent(org)}.ics?key=${encodeURIComponent(this.apiKey)}`;
