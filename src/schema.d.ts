@@ -453,6 +453,7 @@ export interface paths {
                          *               "method": "KO/TKO",
                          *               "method_normalized": "ko_tko",
                          *               "finish_detail": null,
+                         *               "finish_position": null,
                          *               "round": 4,
                          *               "time": "5:00",
                          *               "time_seconds": 300,
@@ -565,7 +566,7 @@ export interface paths {
                 query?: {
                     /** @description Launch org slug: `ufc`, `pfl`, `oktagon`, `bkfc` or `rizin`. Staged orgs 400 until promoted. */
                     org?: "ufc" | "pfl" | "oktagon" | "bkfc" | "rizin";
-                    /** @description Filter on lifecycle status; `postponed` is accepted (2026-09-24). `upcoming` = everything not yet over (announced, scheduled or live), soonest first. */
+                    /** @description Filter on lifecycle status; `postponed` is accepted (2026-09-24). `upcoming` = everything not yet over (announced, scheduled or live), soonest first. `scheduled` = not started yet (`announced` or `scheduled`; upcoming cards are almost always stored as `announced`). */
                     status?: components["schemas"]["EventStatusFilter"];
                     /** @description First UTC calendar day, inclusive `YYYY-MM-DD`, matched against the event's `starts_at` (first bell, UTC) — not the venue's local date. Must be a real calendar day. */
                     from?: string;
@@ -2018,6 +2019,7 @@ export interface paths {
                          *             "method": "KO/TKO",
                          *             "method_normalized": "ko_tko",
                          *             "finish_detail": null,
+                         *             "finish_position": null,
                          *             "round": 4,
                          *             "time": "5:00",
                          *             "time_seconds": 300,
@@ -2137,7 +2139,7 @@ export interface paths {
         };
         /**
          * One bout
-         * @description Bout with corners (`FighterRef` with `country_code`), `sport` (bout override, else the org sport), `weight_class` + `division_slug`, result (raw `method` plus `method_normalized` / `finish_detail` / `round` / `time` / `time_seconds` / referee) and bonus flags, plus a compact `event`. `include=odds` adds `odds`: the current UFCalendar consensus line (`OddsPair`), or `null` when the bout is unpriced — information only, not betting advice; opening, closing and movement are on `/v1/fights/{id}/odds`.
+         * @description Bout with corners (`FighterRef` with `country_code`), `sport` (bout override, else the org sport), `weight_class` + `division_slug`, result (raw `method` plus `method_normalized` / `finish_detail` / `finish_position` / `round` / `time` / `time_seconds` / referee) and bonus flags, plus a compact `event`. `include=odds` adds `odds`: the current UFCalendar consensus line (`OddsPair`), or `null` when the bout is unpriced — information only, not betting advice; opening, closing and movement are on `/v1/fights/{id}/odds`.
          */
         get: {
             parameters: {
@@ -2205,6 +2207,7 @@ export interface paths {
                          *           "method": "Decision - Split",
                          *           "method_normalized": "decision_split",
                          *           "finish_detail": "Split",
+                         *           "finish_position": null,
                          *           "round": 3,
                          *           "time": "5:00",
                          *           "time_seconds": 300,
@@ -3414,6 +3417,7 @@ export interface paths {
                          *             "method": "Decision - Split",
                          *             "method_normalized": "decision_split",
                          *             "finish_detail": "Split",
+                         *             "finish_position": null,
                          *             "round": 3,
                          *             "time": "5:00",
                          *             "time_seconds": 300,
@@ -4456,6 +4460,7 @@ export interface paths {
                          *             "method": "KO/TKO",
                          *             "method_normalized": "ko_tko",
                          *             "finish_detail": null,
+                         *             "finish_position": null,
                          *             "round": 1,
                          *             "time": "2:59",
                          *             "time_seconds": 179,
@@ -8929,7 +8934,7 @@ export interface paths {
         put?: never;
         /**
          * Register a webhook endpoint
-         * @description Pro+. Body: `{"url": "https://...", "events": ["event.announced", "fight.result", "card.changed", "event.completed", "odds.moved"]}`. Subscribe to `event.announced` and you do not need to poll `/v1/events` to discover new cards — it fires once, within a minute of a card first landing in our data, and carries the same event object the list endpoint returns. `fight.result` fires once per bout within a minute of the result, as `revision` 1, and again as the next revision (`corrected: true`, with the `previous` result) whenever the winner, method, round, time or status is corrected in the 72 h after it — upsert on `fight_id` and keep the highest `revision`. `odds.moved` fires when the UFCalendar consensus line on an upcoming bout moves at least 5 implied-probability points on corner a, or the favourite flips, measured against the last line we delivered for that bout (its opening line before the first delivery), so a slow drift arrives once, not per refresh: `data` is `{fight_id, event, fighter_a, fighter_b, odds: {consensus, opening, movement, updated_at}, previous, delta_points_a, direction, favourite_flipped, moved_at}`. Information only, not betting advice. The response contains the signing `secret` ONCE. Every delivery body is `{"id", "type", "data", "sent_at"}` (`WebhookDelivery` schema) — `id` is stable across retries, so deduplicate on it. Deliveries carry `X-UFCalendar-Signature: t=<unix>,v1=<hmac>` where the HMAC-SHA256 input is `"<t>.<rawBody>"`. **Verify the timestamp too**: reject anything where `|now - t|` exceeds 300 seconds, otherwise a captured delivery can be replayed at you forever with a valid HMAC. Delivery is at-least-once — expect a retry roughly every 60s until your endpoint returns 2xx. Endpoints auto-disable after 20 consecutive failures, and you may hold at most 3 active endpoints (409 `endpoint_limit`). Latency: results are dispatched within ~1 minute of the result being recorded. `event.announced` only fires for cards that have not started yet, so archive backfills never reach you as new-card noise. `card.changed` is filtered the same way: a change whose before and after read identically (a venue row re-minted for the same arena, a source dropping a sub-time it never knew) is never delivered, and when a source flip-flops a value we deliver the move and its undo once, not the twentieth repeat. Deliveries are free — they never count against your monthly request quota, only the calls you make to manage endpoints do.
+         * @description Pro+. Body: `{"url": "https://...", "events": ["event.announced", "fight.result", "card.changed", "event.completed", "odds.moved"]}`. Subscribe to `event.announced` and you do not need to poll `/v1/events` to discover new cards — it fires once, within a minute of a card first landing in our data, and carries the same event object the list endpoint returns. `fight.result` fires once per bout within a minute of the result, as `revision` 1, and again as the next revision (`corrected: true`, with the `previous` result) whenever the winner, method, round, time or status is corrected in the 72 h after it — upsert on `fight_id` and keep the highest `revision`. `odds.moved` fires when the UFCalendar consensus line on an upcoming bout moves at least 5 implied-probability points on corner a, or the favourite flips, measured against the last line we delivered for that bout (its opening line before the first delivery), so a slow drift arrives once, not per refresh: `data` is `{fight_id, event, fighter_a, fighter_b, odds: {consensus, opening, movement, updated_at}, previous, delta_points_a, direction, favourite_flipped, moved_at}`. Information only, not betting advice. The response contains the signing `secret` ONCE. Every delivery body is `{"id", "type", "data", "sent_at"}` (`WebhookDelivery` schema) — `id` is stable across retries, so deduplicate on it. Deliveries carry `X-UFCalendar-Signature: t=<unix>,v1=<hmac>` where the HMAC-SHA256 input is `"<t>.<rawBody>"`. **Verify the timestamp too**: reject anything where `|now - t|` exceeds 300 seconds, otherwise a captured delivery can be replayed at you forever with a valid HMAC. Delivery is at-least-once — expect a retry roughly every 60s until your endpoint returns 2xx. Endpoints auto-disable after 20 consecutive failures, and you may hold at most 3 active endpoints (409 `endpoint_limit`). Latency: results are dispatched within ~1 minute of the result being recorded. `event.announced` only fires for cards that have not started yet, and `fight.result` / `event.completed` only for cards that started in the last 7 days, so archive backfills never reach you as new-card or new-result noise. `card.changed` is filtered the same way: a change whose before and after read identically (a venue row re-minted for the same arena, a source dropping a sub-time it never knew) is never delivered, and when a source flip-flops a value we deliver the move and its undo once, not the twentieth repeat. Deliveries are free — they never count against your monthly request quota, only the calls you make to manage endpoints do.
          */
         post: {
             parameters: {
@@ -9387,7 +9392,7 @@ export interface components {
          */
         EventStatus: "announced" | "scheduled" | "live" | "completed" | "cancelled" | "postponed";
         /**
-         * @description What `?status=` accepts on the event lists: every `EventStatus`, plus `upcoming` = announced, scheduled or live cards that have not finished (the site's upcoming-or-live window: started under 6 h ago, or under 14 h ago with a bout still to fight). `upcoming` is a filter only — it never appears on an event.
+         * @description What `?status=` accepts on the event lists: every `EventStatus`, plus `upcoming` = announced, scheduled or live cards that have not finished (the site's upcoming-or-live window: started under 6 h ago, or under 14 h ago with a bout still to fight). `upcoming` is a filter only — it never appears on an event. `scheduled` matches both pre-fight statuses (`announced` or `scheduled`).
          * @enum {string}
          */
         EventStatusFilter: "announced" | "scheduled" | "live" | "completed" | "cancelled" | "postponed" | "upcoming";
@@ -9560,8 +9565,11 @@ export interface components {
             /** @description ISO-2 derived from `country`. */
             country_code: string | null;
             tz: string | null;
+            /** @description Seating capacity when a source publishes it; null for most venues. */
             capacity: number | null;
+            /** @description Latitude: the venue's own point when the promotion publishes it, else its city's centre. */
             lat: number | null;
+            /** @description Longitude; same precision rule as `lat`. */
             lng: number | null;
         };
         /** @description Event-scoped broadcast row. */
@@ -9637,8 +9645,10 @@ export interface components {
             /** @description Source spelling (`Decision - Split`, `KO/TKO`, `Submission (Rear-Naked Choke)`). */
             method: string | null;
             method_normalized: components["schemas"]["MethodNormalized"] | null;
-            /** @description The parenthesised / trailing detail of `method`, cleaned (`Rear-Naked Choke`, `Doctor's Stoppage`). */
+            /** @description How the bout was finished. On a knockout, submission or disqualification: the technique in ONE spelling per move, whatever the source wrote (`Rear-Naked Choke` for "rear naked choke" / "RNC"; `Arm-Triangle Choke`; `D'Arce Choke` for "Brabo Choke"; `Punch`, `Punches`, `Head Kick`, `Doctor Stoppage`), with the position moved to `finish_position`. On a decision: its type from `method` (`Unanimous`, `Split`). Null when the source recorded neither. */
             finish_detail: string | null;
+            /** @description Where a finish happened, when the source recorded it: `distance`, `clinch`, `ground`, `mount`, `back control`, `side control`, `half guard`, `bottom guard`, `bottom half guard`, `front headlock`, `crucifix`, `north-south`, `standing`, `after drop to guard` / `after drop to half guard` / `after drop to ground`. Null on a decision and when unrecorded. */
+            finish_position: string | null;
             round: number | null;
             /** @description `m:ss` into the round. */
             time: string | null;
@@ -11473,8 +11483,11 @@ export interface components {
             region: string | null;
             country: string | null;
             country_code: string | null;
+            /** @description Latitude: the venue's own point when the promotion publishes it, else its city's centre. */
             lat: number | null;
+            /** @description Longitude; same precision rule as `lat`. */
             lng: number | null;
+            /** @description Seating capacity when a source publishes it; null for most venues. */
             capacity: number | null;
             tz: string | null;
         };

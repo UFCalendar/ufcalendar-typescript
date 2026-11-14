@@ -188,8 +188,11 @@ export interface FightResult {
   winner_fighter_id: number | null;
   method: string | null;
   method_normalized: MethodNormalized | null;
-  /** "Rear-Naked Choke", "Doctor's Stoppage", … when the source states it. */
+  /** One spelling per technique on a finish ("Rear-Naked Choke", "Head Kick",
+   * "Doctor Stoppage"); the decision type on a decision ("Unanimous"). */
   finish_detail: string | null;
+  /** Where a finish happened when recorded ("bottom guard", "mount", "distance"). */
+  finish_position: string | null;
   round: number | null;
   /** "m:ss" as the source printed it. */
   time: string | null;
