@@ -1327,3 +1327,266 @@ export interface OrgCoverage {
   /** Newest first. */
   years: CoverageYear[];
 }
+
+/* ── in-fight log + position stats (Pro and Business; settled UFC bouts) ─ */
+
+/** Why the referee stopped the action, as the log labels it. `eye_poke` and
+ *  `low_blow` are fouls; `doctor` is a doctor check; `generic` is everything
+ *  else — a lost mouthpiece, a replay, but also any foul the log has no label
+ *  for. A `generic` stoppage is a foul only when `is_foul` says so. */
+export type StoppageReason = 'eye_poke' | 'low_blow' | 'doctor' | 'generic';
+
+/** What the foul was. `eye_poke` and `low_blow` come labelled from the log;
+ *  the rest are read from the commission's deduction reason or the official
+ *  result detail: `illegal_knee` (a knee to a grounded opponent),
+ *  `illegal_kick` (an upkick, a soccer kick or a stomp), `headbutt`,
+ *  `illegal_strike` (back of the head, spine, 12-6 elbow), `fence` (grabbing
+ *  the fence or cage), `biting`, and `other` when the record names no foul
+ *  this vocabulary covers. */
+export type FoulKind =
+  | 'eye_poke'
+  | 'low_blow'
+  | 'illegal_knee'
+  | 'illegal_kick'
+  | 'headbutt'
+  | 'illegal_strike'
+  | 'fence'
+  | 'biting'
+  | 'other';
+
+/** Which record confirms the foul: `log` = the in-fight log's own eye-poke /
+ *  low-blow row; `deduction` = the athletic commission took a point for it;
+ *  `result` = the bout ended on it (a disqualification, or a "could not
+ *  continue" / no contest whose official detail describes a foul). */
+export type FoulBasis = 'log' | 'deduction' | 'result';
+
+/** The fighter who committed the foul. */
+export interface FoulCommitter {
+  fighter_id: number;
+  corner: 'a' | 'b' | null;
+}
+
+/** One row of the official in-fight log. */
+export interface TimelineAction {
+  /** The log's own action name (open vocabulary): `round_start`, `round_end`,
+   *  `takedown`, `takedown_attempt`, `knockdown`, `submission_attempt`,
+   *  `reversal`, `round_pause`, `pause_reason_eye_poke`, `round_unpause` … */
+  type: string;
+  round: number | null;
+  /** Seconds elapsed in the round. */
+  elapsed_sec: number | null;
+  at: string | null;
+  /** On a `pause_reason_eye_poke` / `pause_reason_low_blow` row: the fighter
+   *  who COMMITTED the foul. */
+  fighter_id: number | null;
+  corner: 'a' | 'b' | null;
+}
+
+/** One referee stoppage: the pause, its reason and the resume, paired — and,
+ *  when a record confirms it, the foul behind it. */
+export interface TimelineStoppage {
+  round: number | null;
+  /** Seconds elapsed in the round when the action was stopped. */
+  elapsed_sec: number | null;
+  at: string | null;
+  /** null when the bout never resumed. */
+  resumed_at: string | null;
+  /** Real seconds stopped (the fight clock is stopped). */
+  duration_sec: number | null;
+  /** null = logged before reasons were recorded (before 2018-12-08). */
+  reason: StoppageReason | null;
+  /** true when a record confirms this stoppage was for a foul: a labelled
+   *  `eye_poke` / `low_blow`, or a `generic` / unlabelled stoppage tied to a
+   *  commission point deduction or to the foul the bout ended on. A `generic`
+   *  stoppage with no such record is false. */
+  is_foul: boolean;
+  /** The confirmed foul; null when `is_foul` is false. */
+  foul: FoulKind | null;
+  /** null when `is_foul` is false. */
+  foul_basis: FoulBasis | null;
+  /** The fighter who committed the foul. null when it is not a foul, or when
+   *  no record names the fighter (an accidental clash of heads). */
+  committed_by: FoulCommitter | null;
+  /** Points the commission deducted for this foul; 0 when none. */
+  points_deducted: number;
+  /** true when the bout ended on this foul (a disqualification or a "could
+   *  not continue"). */
+  ended_bout: boolean;
+}
+
+/** One confirmed foul. A foul is listed once: a deduction for a logged low
+ *  blow adds its points to that foul, and a result that names a foul already
+ *  listed marks it `ended_bout`. */
+export interface FoulIncident {
+  foul: FoulKind;
+  basis: FoulBasis;
+  /** null when no record names the fighter. */
+  committed_by: FoulCommitter | null;
+  round: number | null;
+  /** Seconds elapsed in the round. null when no stoppage in the log is tied
+   *  to the foul (a point deducted for grabbing the fence with no pause
+   *  logged). */
+  elapsed_sec: number | null;
+  /** Real seconds the bout was stopped for it; null when unmeasured. */
+  stoppage_sec: number | null;
+  points_deducted: number;
+  ended_bout: boolean;
+}
+
+/** Fouls one corner COMMITTED in the bout. A recorded foul is not a ruling
+ *  on intent. */
+export interface FoulTally {
+  fighter_id: number | null;
+  /** Eye pokes this fighter committed that stopped the action. */
+  eye_pokes: number;
+  /** Low blows this fighter committed that stopped the action. */
+  low_blows: number;
+  /** Every other confirmed foul this fighter committed (see `FoulKind`). */
+  other: number;
+  /** `eye_pokes` + `low_blows` + `other`. */
+  total: number;
+  /** Points the commission took from this fighter in the bout. */
+  points_deducted: number;
+  /** Real seconds the bout was stopped for this fighter's fouls. */
+  stoppage_sec: number;
+}
+
+/** `GET /v1/fights/{id}/timeline`. `lastMeta.has_stoppage_reasons` is false
+ *  on a card before 2018-12-08. */
+export interface FightTimeline {
+  /** Round length in seconds (300 for MMA) — the scale `elapsed_sec` runs on. */
+  round_seconds: number;
+  /** Every logged action, in the order it happened. */
+  actions: TimelineAction[];
+  /** Referee stoppages, in order. */
+  stoppages: TimelineStoppage[];
+  /** Every confirmed foul of the bout in fight order — including fouls with
+   *  no stoppage in the log and fouls nobody is named for. */
+  incidents: FoulIncident[];
+  fouls: { a: FoulTally; b: FoulTally };
+}
+
+export interface StrikeCount {
+  landed: number | null;
+  attempted: number | null;
+}
+
+export interface StrikesByTarget {
+  head: StrikeCount;
+  body: StrikeCount;
+  leg: StrikeCount;
+}
+
+/** One fighter's position stats for a bout or a round. `null` = not tracked
+ *  for that bout; `0` = a real zero. */
+export interface PositionStatLine {
+  fighter_id: number | null;
+  corner: 'a' | 'b' | null;
+  /** Shared by both fighters: standing = distance + clinch; standing + ground = fight time. */
+  time: {
+    standing_sec: number | null;
+    distance_sec: number | null;
+    clinch_sec: number | null;
+    ground_sec: number | null;
+    neutral_sec: number | null;
+  };
+  /** THIS fighter's control: total = clinch + ground; ground = back + mount + side + half guard + guard + misc. */
+  control: {
+    total_sec: number | null;
+    clinch_sec: number | null;
+    ground_sec: number | null;
+    back_sec: number | null;
+    mount_sec: number | null;
+    side_sec: number | null;
+    half_guard_sec: number | null;
+    guard_sec: number | null;
+    misc_ground_sec: number | null;
+  };
+  /** Significant strikes by position, then target. */
+  sig_strikes: { distance: StrikesByTarget; clinch: StrikesByTarget; ground: StrikesByTarget };
+  total_strikes: { head: StrikeCount; body: StrikeCount; leg: StrikeCount; clinch: StrikeCount; ground: StrikeCount };
+}
+
+/** `GET /v1/fights/{id}/positions`. `lastMeta.official` is true once every
+ *  line is the official post-fight figure. */
+export interface FightPositions {
+  /** The whole bout: corner a, then b. Empty when positions were not tracked. */
+  totals: PositionStatLine[];
+  rounds: Array<{ round: number; fighters: PositionStatLine[] }>;
+}
+
+export interface FoulCounts {
+  /** `eye_pokes` + `low_blows` + `other`. */
+  total: number;
+  eye_pokes: number;
+  low_blows: number;
+  /** Every other confirmed foul (see `FoulKind`). */
+  other: number;
+}
+
+export interface DisciplineIncident {
+  fight_id: number;
+  date: string;
+  event: { slug: string; title: string };
+  opponent: { slug: string | null; name: string | null };
+  /** `committed` = by this fighter; `drawn` = by the opponent. */
+  role: 'committed' | 'drawn';
+  /** What the foul was. */
+  reason: FoulKind;
+  basis: FoulBasis;
+  round: number | null;
+  /** Seconds elapsed in the round; null when no stoppage in the log is tied
+   *  to the foul. */
+  elapsed_sec: number | null;
+  /** Real seconds the bout was stopped; null if it never resumed or was not
+   *  timed. */
+  stoppage_sec: number | null;
+  /** Points the commission deducted for it; 0 when none. */
+  points_deducted: number;
+  /** true when the bout ended on this foul. */
+  ended_bout: boolean;
+}
+
+/** `GET /v1/fighters/{slug}/discipline` — confirmed fouls in a fighter's UFC
+ *  bouts: the log's eye pokes and low blows, plus any other foul a commission
+ *  point deduction or the official result confirms. A recorded foul is not a
+ *  ruling on intent. */
+export interface FighterDiscipline {
+  /** Settled UFC bouts since the coverage date that carry an in-fight log. */
+  tracked_fights: number;
+  /** Seconds fought across those bouts. */
+  cage_seconds: number;
+  committed: FoulCounts;
+  drawn: FoulCounts;
+  /** Points the commission has taken from THIS fighter across those bouts. */
+  points_deducted: number;
+  /** Real seconds bouts were stopped for THIS fighter's fouls. */
+  stoppage_sec: number;
+  /** Fouls committed per 15 minutes of cage time. null under 5 tracked bouts
+   *  or 30 minutes of cage time. */
+  fouls_per_15: number | null;
+  /** Every confirmed foul this fighter committed or drew, most recent first. */
+  incidents: DisciplineIncident[];
+}
+
+export type ControlPosition = 'back' | 'mount' | 'side' | 'half_guard' | 'guard' | 'clinch';
+
+/** `GET /v1/fighters/{slug}/positions` — where a fighter's bouts happen. */
+export interface FighterPositions {
+  tracked_fights: number;
+  cage_seconds: number;
+  time: {
+    distance_sec: number;
+    clinch_sec: number;
+    ground_sec: number;
+    /** Shares of `cage_seconds`, 0–1. */
+    distance_share: number | null;
+    clinch_share: number | null;
+    ground_share: number | null;
+  };
+  control: {
+    for_sec: number;
+    against_sec: number;
+    by_position: Array<{ position: ControlPosition; for_sec: number; against_sec: number }>;
+  };
+}

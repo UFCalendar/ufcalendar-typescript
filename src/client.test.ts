@@ -6,6 +6,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { FightAPI, FightAPIError, VERSION } from './index';
+import type { FightTimeline, FighterDiscipline } from './index';
 
 type Call = { url: URL; init: RequestInit & { headers: Record<string, string> } };
 
@@ -633,6 +634,106 @@ describe('consensus odds', () => {
     await assert.rejects(async () => {
       for await (const _ of api.fightOddsHistory(83379)) void _;
     }, (e: unknown) => e instanceof FightAPIError && e.code === 'tier_required' && e.status === 403);
+  });
+});
+
+describe('in-fight log and position stats (Pro and up)', () => {
+  it('fightTimeline / fightPositions hit the fight routes and keep meta', async () => {
+    const timeline = {
+      round_seconds: 300,
+      actions: [],
+      // The real stoppages of fight 59652 (UFC 286): a `generic` pause that is
+      // no foul, a logged low blow, and a `generic` pause the commission's
+      // point deduction confirms as a fence grab.
+      stoppages: [
+        { round: 1, elapsed_sec: 246, at: '2023-03-18T23:35:58.000Z', resumed_at: '2023-03-18T23:36:11.000Z', duration_sec: 13, reason: 'generic', is_foul: false, foul: null, foul_basis: null, committed_by: null, points_deducted: 0, ended_bout: false },
+        { round: 2, elapsed_sec: 54, at: '2023-03-18T23:39:06.000Z', resumed_at: '2023-03-18T23:39:19.000Z', duration_sec: 13, reason: 'low_blow', is_foul: true, foul: 'low_blow', foul_basis: 'log', committed_by: { fighter_id: 401, corner: 'a' }, points_deducted: 0, ended_bout: false },
+        { round: 3, elapsed_sec: 90, at: '2023-03-18T23:46:06.000Z', resumed_at: '2023-03-18T23:46:54.000Z', duration_sec: 48, reason: 'generic', is_foul: true, foul: 'fence', foul_basis: 'deduction', committed_by: { fighter_id: 401, corner: 'a' }, points_deducted: 1, ended_bout: false },
+        { round: 3, elapsed_sec: 175, at: '2023-03-18T23:48:19.000Z', resumed_at: '2023-03-18T23:48:42.000Z', duration_sec: 23, reason: 'low_blow', is_foul: true, foul: 'low_blow', foul_basis: 'log', committed_by: { fighter_id: 401, corner: 'a' }, points_deducted: 0, ended_bout: false },
+      ],
+      incidents: [
+        { foul: 'low_blow', basis: 'log', committed_by: { fighter_id: 401, corner: 'a' }, round: 2, elapsed_sec: 54, stoppage_sec: 13, points_deducted: 0, ended_bout: false },
+        { foul: 'fence', basis: 'deduction', committed_by: { fighter_id: 401, corner: 'a' }, round: 3, elapsed_sec: 90, stoppage_sec: 48, points_deducted: 1, ended_bout: false },
+        { foul: 'low_blow', basis: 'log', committed_by: { fighter_id: 401, corner: 'a' }, round: 3, elapsed_sec: 175, stoppage_sec: 23, points_deducted: 0, ended_bout: false },
+      ],
+      fouls: {
+        a: { fighter_id: 401, eye_pokes: 0, low_blows: 2, other: 1, total: 3, points_deducted: 1, stoppage_sec: 84 },
+        b: { fighter_id: 1204, eye_pokes: 0, low_blows: 0, other: 0, total: 0, points_deducted: 0, stoppage_sec: 0 },
+      },
+    } satisfies FightTimeline;
+    const { calls, fetchImpl } = stub([
+      { body: { data: timeline, meta: { fight_id: 59652, source: 'ufc-official', has_stoppage_reasons: true } } },
+      { body: { data: { totals: [], rounds: [] }, meta: { fight_id: 59652, source: 'ufc-official', official: null, note: 'n' } } },
+    ]);
+    const api = new FightAPI({ apiKey: 'k', fetch: fetchImpl });
+    const log = await api.fightTimeline(59652);
+    assert.equal(calls[0]!.url.pathname, '/v1/fights/59652/timeline');
+    assert.equal(log.fouls.a.low_blows, 2);
+    assert.equal(log.fouls.a.other, 1);
+    assert.equal(log.fouls.a.total, 3);
+    assert.equal(log.fouls.a.points_deducted, 1);
+    // A `generic` stoppage is a foul only when a record confirms it.
+    assert.equal(log.stoppages[0]!.is_foul, false);
+    assert.equal(log.stoppages[0]!.foul, null);
+    assert.equal(log.stoppages[1]!.committed_by?.fighter_id, 401);
+    const fence = log.stoppages[2]!;
+    assert.equal(fence.reason, 'generic');
+    assert.equal(fence.is_foul, true);
+    assert.equal(fence.foul, 'fence');
+    assert.equal(fence.foul_basis, 'deduction');
+    assert.equal(fence.points_deducted, 1);
+    assert.equal(fence.ended_bout, false);
+    assert.deepEqual(log.incidents.map((i) => [i.foul, i.basis]), [['low_blow', 'log'], ['fence', 'deduction'], ['low_blow', 'log']]);
+    assert.equal(api.lastMeta?.has_stoppage_reasons, true);
+    const pos = await api.fightPositions(59652);
+    assert.equal(calls[1]!.url.pathname, '/v1/fights/59652/positions');
+    assert.deepEqual(pos, { totals: [], rounds: [] });
+    assert.equal(api.lastMeta?.official, null);
+  });
+
+  it('fighterDiscipline / fighterPositions hit the fighter routes; null data stays null', async () => {
+    const { calls, fetchImpl } = stub([
+      {
+        body: {
+          data: {
+            tracked_fights: 10, cage_seconds: 11549,
+            committed: { total: 7, eye_pokes: 3, low_blows: 3, other: 1 },
+            drawn: { total: 0, eye_pokes: 0, low_blows: 0, other: 0 },
+            points_deducted: 1, stoppage_sec: 166, fouls_per_15: 0.546,
+            incidents: [
+              { fight_id: 59652, date: '2023-03-18', event: { slug: 'ufc-286-2023-03-18', title: 'UFC 286: Edwards vs Usman 3' }, opponent: { slug: 'kamaru-usman', name: 'Kamaru Usman' }, role: 'committed', reason: 'fence', basis: 'deduction', round: 3, elapsed_sec: 90, stoppage_sec: 48, points_deducted: 1, ended_bout: false },
+              { fight_id: 66235, date: '2021-03-13', event: { slug: 'ufc-fight-night-2021-03-13', title: 'UFC Fight Night: Edwards vs Muhammad' }, opponent: { slug: 'belal-muhammad', name: 'Belal Muhammad' }, role: 'committed', reason: 'eye_poke', basis: 'log', round: 2, elapsed_sec: 19, stoppage_sec: null, points_deducted: 0, ended_bout: true },
+            ],
+          } satisfies FighterDiscipline,
+          meta: { fighter_id: 401, source: 'ufc-official', coverage_since: '2018-12-08' },
+        },
+      },
+      { body: { data: null, meta: { fighter_id: 401, source: 'ufc-official', note: 'Fewer than 3 bouts with tracked positions.' } } },
+    ]);
+    const api = new FightAPI({ apiKey: 'k', fetch: fetchImpl });
+    const d = await api.fighterDiscipline('leon-edwards');
+    assert.equal(calls[0]!.url.pathname, '/v1/fighters/leon-edwards/discipline');
+    assert.equal(d?.committed.total, 7);
+    assert.equal(d?.committed.other, 1);
+    assert.equal(d?.points_deducted, 1);
+    assert.deepEqual(d?.incidents.map((i) => [i.reason, i.basis, i.points_deducted, i.ended_bout]), [
+      ['fence', 'deduction', 1, false],
+      ['eye_poke', 'log', 0, true],
+    ]);
+    assert.equal(api.lastMeta?.coverage_since, '2018-12-08');
+    assert.equal(await api.fighterPositions('leon-edwards'), null);
+    assert.equal(calls[1]!.url.pathname, '/v1/fighters/leon-edwards/positions');
+    assert.match(String(api.lastMeta?.note), /Fewer than 3/);
+  });
+
+  it('below Pro every one of the four throws tier_required', async () => {
+    const refusal = { status: 403, body: { error: { code: 'tier_required', message: 'Fight logs, discipline and position stats need a Pro plan or higher.', request_id: 'r1' } } };
+    const isTier = (e: unknown) => e instanceof FightAPIError && e.code === 'tier_required' && e.status === 403;
+    const api = new FightAPI({ apiKey: 'k', fetch: stub([refusal]).fetchImpl });
+    await assert.rejects(() => api.fightTimeline(59652), isTier);
+    await assert.rejects(() => api.fightPositions(59652), isTier);
+    await assert.rejects(() => api.fighterDiscipline('leon-edwards'), isTier);
+    await assert.rejects(() => api.fighterPositions('leon-edwards'), isTier);
   });
 });
 

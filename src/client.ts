@@ -21,7 +21,11 @@
 import { VERSION } from './version';
 import type {
   Article,
+  FightPositions,
   FightStatLine,
+  FightTimeline,
+  FighterDiscipline,
+  FighterPositions,
   OrgCoverage,
   Referee,
   RefereeFightRow,
@@ -551,6 +555,47 @@ export class FightAPI {
   }
 
   /**
+   * The official in-fight log of one settled UFC bout (Pro plans and up; a
+   * lower plan throws `FightAPIError` 403 `tier_required`): every logged
+   * action in order, the referee stoppages paired with their reason and
+   * real length, and every confirmed foul of the bout.
+   *
+   * The log labels only two fouls, the eye poke and the low blow. Any other
+   * foul (an illegal knee to a grounded opponent, an upkick, a headbutt, a
+   * bite, a fence grab) reaches it as a `generic` stoppage naming nobody, so
+   * a foul is reported only when a record confirms it (`foul_basis` /
+   * `basis`): `log` (the labelled row), `deduction` (the athletic commission
+   * took a point) or `result` (the bout ended on it: a disqualification or a
+   * "could not continue"). On a stoppage, `is_foul` says whether a foul is
+   * confirmed, `foul` what it was, `committed_by` who committed it (null
+   * when no record names a fighter), `points_deducted` and `ended_bout`; a
+   * `generic` stoppage with no record behind it has `is_foul: false`.
+   * `incidents` lists every confirmed foul in fight order, including one
+   * with no stoppage in the log; `fouls.a` / `fouls.b` count what each
+   * corner committed (`eye_pokes`, `low_blows`, `other`, `total`,
+   * `points_deducted`). A recorded foul is not a ruling on intent.
+   *
+   * Coverage: UFC bouts from June 2013, stoppage reasons
+   * from 8 December 2018 (`lastMeta.has_stoppage_reasons`). A bout with no
+   * log, or one not settled yet, resolves with empty lists and
+   * `lastMeta.note`.
+   */
+  fightTimeline(fightId: number | string): Promise<FightTimeline> {
+    return this.get<FightTimeline>(`fights/${encodeURIComponent(String(fightId))}/timeline`);
+  }
+
+  /**
+   * Position stats of one settled UFC bout (Pro plans and up): where it was
+   * fought (`time`, shared by both fighters), each fighter's `control` by
+   * position, and strikes by position and target — `totals` for the whole
+   * bout, `rounds` per round. `null` means not tracked for that bout; `0`
+   * is a real zero. Tracked reliably from 2007.
+   */
+  fightPositions(fightId: number | string): Promise<FightPositions> {
+    return this.get<FightPositions>(`fights/${encodeURIComponent(String(fightId))}/positions`);
+  }
+
+  /**
    * Completed bouts, filtered — newest first unless `order: 'oldest'`. At
    * least one narrowing filter is required (`titleOnly`, `method`,
    * `division`, `fighter`, `winner`, `from`, `to`, `mainEventsOnly`); the
@@ -708,6 +753,35 @@ export class FightAPI {
     return this.get<PowerIndex & Record<string, unknown>>(
       `fighters/${encodeURIComponent(String(idOrSlug))}/power-index`,
     );
+  }
+
+  /**
+   * The confirmed fouls in a fighter's UFC bouts since 8 December 2018 (Pro
+   * plans and up), committed and drawn: eye pokes and low blows from the
+   * official in-fight log, plus any other foul (an illegal knee to a
+   * grounded opponent, an upkick, a headbutt, a bite, a fence grab)
+   * confirmed by the athletic commission's point deduction or by the
+   * official result. `committed` / `drawn` count `total`, `eye_pokes`,
+   * `low_blows` and `other`; `points_deducted` is what the commission has
+   * taken from this fighter; `incidents` lists every confirmed foul, most
+   * recent first, with `reason` (the foul), `basis` (`log`, `deduction` or
+   * `result`), `points_deducted` and `ended_bout`. A `generic` stoppage with
+   * no record behind it is never counted. A recorded foul is not a ruling on
+   * intent. Resolves `null` (with `lastMeta.note`) under 3 tracked bouts
+   * with no recorded foul.
+   */
+  fighterDiscipline(idOrSlug: string | number): Promise<FighterDiscipline | null> {
+    return this.get<FighterDiscipline | null>(`fighters/${encodeURIComponent(String(idOrSlug))}/discipline`);
+  }
+
+  /**
+   * A fighter's career position profile (Pro plans and up): the share of
+   * cage time at distance, in the clinch and on the ground, and control
+   * seconds for and against by position. Resolves `null` (with
+   * `lastMeta.note`) under 3 bouts with tracked positions.
+   */
+  fighterPositions(idOrSlug: string | number): Promise<FighterPositions | null> {
+    return this.get<FighterPositions | null>(`fighters/${encodeURIComponent(String(idOrSlug))}/positions`);
   }
 
   /**

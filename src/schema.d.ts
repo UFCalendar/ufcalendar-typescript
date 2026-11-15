@@ -3334,6 +3334,813 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/fights/{id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * In-fight log: actions, stoppages and fouls (Pro+)
+         * @description The official in-fight log of one settled UFC bout (Dana White's Contender Series included), from June 2013: every logged action in order, the referee stoppages paired with their reason and real length, and every confirmed foul of the bout. Requires a Pro or Business plan: a lower plan gets 403 `tier_required`, answered before the fight is looked up.
+         *
+         *     `actions[]`: `type` is the log's own action name (an open vocabulary: `round_start`, `round_end`, `takedown`, `takedown_attempt`, `knockdown`, `submission_attempt`, `reversal`, `round_pause`, `pause_reason_eye_poke` / `pause_reason_low_blow` / `pause_reason_doctor` / `pause_reason_generic`, `round_unpause`, `fight_over`, plus ceremony and result rows such as `walkout`, `staredown` and `results`), `round`, `elapsed_sec` (seconds elapsed in the round), `at` (UTC) and, where the action belongs to a fighter, `fighter_id` + `corner`. A landed takedown is logged as a `takedown_attempt` followed by a `takedown`.
+         *
+         *     `stoppages[]` pairs each `round_pause` with its reason and the `round_unpause` of the same round: `reason` is `eye_poke`, `low_blow`, `doctor`, `generic` or null; `duration_sec` is real time, because the fight clock is stopped; `doctor` is a doctor check and `generic` is everything else. Stoppage reasons are logged from 8 December 2018: on an earlier card `reason` is null and `meta.has_stoppage_reasons` is false — an unlabelled stoppage, never "no foul".
+         *
+         *     **Fouls.** The log labels only two fouls, the eye poke and the low blow. Every other foul a referee stops a bout for — an illegal knee to a grounded opponent, an upkick, a headbutt, a bite, a fence grab — reaches the log as a `generic` stoppage with no fighter on it, and `generic` is also a lost mouthpiece. So a foul is reported only when a record confirms it (`foul_basis` / `basis`): `log` (the labelled row), `deduction` (the athletic commission took a point) or `result` (the bout ended on it: a disqualification, or a "could not continue" / no contest whose official detail describes a foul). On a stoppage, `is_foul` says whether one is confirmed, `foul` what it was (`eye_poke`, `low_blow`, `illegal_knee`, `illegal_kick`, `headbutt`, `illegal_strike`, `fence`, `biting`, `other`), `committed_by` who COMMITTED it (null when no record names a fighter), `points_deducted` and `ended_bout`. A `generic` stoppage with no record behind it has `is_foul: false`. `incidents[]` lists every confirmed foul in fight order, including one with no stoppage in the log (a point deducted for grabbing the fence: `elapsed_sec` is null). One incident is one foul: a deduction for a logged low blow adds its points to that foul. `fouls.a` / `fouls.b` count what each corner committed (`eye_pokes`, `low_blows`, `other`, `total`), the points deducted and the seconds the bout was stopped for it. A recorded foul is not a ruling on intent.
+         *
+         *     Settled bouts only (`completed` or `no_contest`). A bout that is not settled yet, a bout of another promotion or one with no log answers 200 with empty lists and `meta.note`; 404 is reserved for an unknown fight. `meta.source` is `ufc-official`.
+         *
+         *     For example, fight 59652 (Leon Edwards vs Kamaru Usman, UFC 286) logs 51 actions and four stoppages: round 1 at 246 s (`generic`, 13 s), round 2 at 54 s (`low_blow`, 13 s, committed by fighter 401 in corner `a`), round 3 at 90 s (`generic`, 48 s — the pause for the fence grab the commission deducted a point for, so `is_foul` true, `foul` `fence`, `foul_basis` `deduction`, `points_deducted` 1) and round 3 at 175 s (`low_blow`, 23 s, fighter 401 again). `fouls.a` reads `fighter_id` 401, `eye_pokes` 0, `low_blows` 2, `other` 1, `total` 3, `points_deducted` 1, `stoppage_sec` 84; `fouls.b` (fighter 1204) is all zeros. Fight 65762 (Petr Yan vs Aljamain Sterling, UFC 259) has one stoppage, `generic` at 270 s of round 4, never resumed: `is_foul` true, `foul` `illegal_knee`, `foul_basis` `result`, `committed_by` Yan, `ended_bout` true.
+         *
+         *     The example is fight 59652 with `actions` cut to the 8 rows of round 2; `stoppages`, `incidents` and `fouls` are complete.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The log, its stoppages and the foul counts */
+                200: {
+                    headers: {
+                        /** @description Weak validator over the body, e.g. `W/"GKrimLo826WBqG27jbNFsW2ZHmA"`. Send it back as `If-None-Match` to get a 304. */
+                        ETag?: string;
+                        /** @description Always `private, no-cache`. */
+                        "Cache-Control"?: string;
+                        /** @description Monthly request quota of the plan. */
+                        "X-RateLimit-Limit"?: number;
+                        /** @description Requests left this month. */
+                        "X-RateLimit-Remaining"?: number;
+                        /** @description Unix seconds of the monthly reset. */
+                        "X-RateLimit-Reset"?: number;
+                        /** @description Quote it to support; the same id is in every error body. */
+                        "x-request-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "data": {
+                         *         "round_seconds": 300,
+                         *         "actions": [
+                         *           {
+                         *             "type": "round_start",
+                         *             "round": 2,
+                         *             "elapsed_sec": 0,
+                         *             "at": "2023-03-18T23:38:12.000Z",
+                         *             "fighter_id": null,
+                         *             "corner": null
+                         *           },
+                         *           {
+                         *             "type": "round_pause",
+                         *             "round": 2,
+                         *             "elapsed_sec": 54,
+                         *             "at": "2023-03-18T23:39:06.000Z",
+                         *             "fighter_id": null,
+                         *             "corner": null
+                         *           },
+                         *           {
+                         *             "type": "pause_reason_low_blow",
+                         *             "round": 2,
+                         *             "elapsed_sec": 54,
+                         *             "at": "2023-03-18T23:39:06.000Z",
+                         *             "fighter_id": 401,
+                         *             "corner": "a"
+                         *           },
+                         *           {
+                         *             "type": "round_unpause",
+                         *             "round": 2,
+                         *             "elapsed_sec": 54,
+                         *             "at": "2023-03-18T23:39:19.000Z",
+                         *             "fighter_id": null,
+                         *             "corner": null
+                         *           },
+                         *           {
+                         *             "type": "takedown_attempt",
+                         *             "round": 2,
+                         *             "elapsed_sec": 137,
+                         *             "at": "2023-03-18T23:40:43.000Z",
+                         *             "fighter_id": 1204,
+                         *             "corner": "b"
+                         *           },
+                         *           {
+                         *             "type": "takedown",
+                         *             "round": 2,
+                         *             "elapsed_sec": 139,
+                         *             "at": "2023-03-18T23:40:44.000Z",
+                         *             "fighter_id": 1204,
+                         *             "corner": "b"
+                         *           },
+                         *           {
+                         *             "type": "takedown_attempt",
+                         *             "round": 2,
+                         *             "elapsed_sec": 162,
+                         *             "at": "2023-03-18T23:41:07.000Z",
+                         *             "fighter_id": 401,
+                         *             "corner": "a"
+                         *           },
+                         *           {
+                         *             "type": "round_end",
+                         *             "round": 2,
+                         *             "elapsed_sec": 300,
+                         *             "at": "2023-03-18T23:43:26.000Z",
+                         *             "fighter_id": null,
+                         *             "corner": null
+                         *           }
+                         *         ],
+                         *         "stoppages": [
+                         *           {
+                         *             "round": 1,
+                         *             "elapsed_sec": 246,
+                         *             "at": "2023-03-18T23:35:58.000Z",
+                         *             "resumed_at": "2023-03-18T23:36:11.000Z",
+                         *             "duration_sec": 13,
+                         *             "reason": "generic",
+                         *             "is_foul": false,
+                         *             "foul": null,
+                         *             "foul_basis": null,
+                         *             "committed_by": null,
+                         *             "points_deducted": 0,
+                         *             "ended_bout": false
+                         *           },
+                         *           {
+                         *             "round": 2,
+                         *             "elapsed_sec": 54,
+                         *             "at": "2023-03-18T23:39:06.000Z",
+                         *             "resumed_at": "2023-03-18T23:39:19.000Z",
+                         *             "duration_sec": 13,
+                         *             "reason": "low_blow",
+                         *             "is_foul": true,
+                         *             "foul": "low_blow",
+                         *             "foul_basis": "log",
+                         *             "committed_by": {
+                         *               "fighter_id": 401,
+                         *               "corner": "a"
+                         *             },
+                         *             "points_deducted": 0,
+                         *             "ended_bout": false
+                         *           },
+                         *           {
+                         *             "round": 3,
+                         *             "elapsed_sec": 90,
+                         *             "at": "2023-03-18T23:46:06.000Z",
+                         *             "resumed_at": "2023-03-18T23:46:54.000Z",
+                         *             "duration_sec": 48,
+                         *             "reason": "generic",
+                         *             "is_foul": true,
+                         *             "foul": "fence",
+                         *             "foul_basis": "deduction",
+                         *             "committed_by": {
+                         *               "fighter_id": 401,
+                         *               "corner": "a"
+                         *             },
+                         *             "points_deducted": 1,
+                         *             "ended_bout": false
+                         *           },
+                         *           {
+                         *             "round": 3,
+                         *             "elapsed_sec": 175,
+                         *             "at": "2023-03-18T23:48:19.000Z",
+                         *             "resumed_at": "2023-03-18T23:48:42.000Z",
+                         *             "duration_sec": 23,
+                         *             "reason": "low_blow",
+                         *             "is_foul": true,
+                         *             "foul": "low_blow",
+                         *             "foul_basis": "log",
+                         *             "committed_by": {
+                         *               "fighter_id": 401,
+                         *               "corner": "a"
+                         *             },
+                         *             "points_deducted": 0,
+                         *             "ended_bout": false
+                         *           }
+                         *         ],
+                         *         "incidents": [
+                         *           {
+                         *             "foul": "low_blow",
+                         *             "basis": "log",
+                         *             "committed_by": {
+                         *               "fighter_id": 401,
+                         *               "corner": "a"
+                         *             },
+                         *             "round": 2,
+                         *             "elapsed_sec": 54,
+                         *             "stoppage_sec": 13,
+                         *             "points_deducted": 0,
+                         *             "ended_bout": false
+                         *           },
+                         *           {
+                         *             "foul": "fence",
+                         *             "basis": "deduction",
+                         *             "committed_by": {
+                         *               "fighter_id": 401,
+                         *               "corner": "a"
+                         *             },
+                         *             "round": 3,
+                         *             "elapsed_sec": 90,
+                         *             "stoppage_sec": 48,
+                         *             "points_deducted": 1,
+                         *             "ended_bout": false
+                         *           },
+                         *           {
+                         *             "foul": "low_blow",
+                         *             "basis": "log",
+                         *             "committed_by": {
+                         *               "fighter_id": 401,
+                         *               "corner": "a"
+                         *             },
+                         *             "round": 3,
+                         *             "elapsed_sec": 175,
+                         *             "stoppage_sec": 23,
+                         *             "points_deducted": 0,
+                         *             "ended_bout": false
+                         *           }
+                         *         ],
+                         *         "fouls": {
+                         *           "a": {
+                         *             "fighter_id": 401,
+                         *             "eye_pokes": 0,
+                         *             "low_blows": 2,
+                         *             "other": 1,
+                         *             "total": 3,
+                         *             "points_deducted": 1,
+                         *             "stoppage_sec": 84
+                         *           },
+                         *           "b": {
+                         *             "fighter_id": 1204,
+                         *             "eye_pokes": 0,
+                         *             "low_blows": 0,
+                         *             "other": 0,
+                         *             "total": 0,
+                         *             "points_deducted": 0,
+                         *             "stoppage_sec": 0
+                         *           }
+                         *         }
+                         *       },
+                         *       "meta": {
+                         *         "fight_id": 59652,
+                         *         "source": "ufc-official",
+                         *         "has_stoppage_reasons": true
+                         *       }
+                         *     }
+                         */
+                        "application/json": components["schemas"]["FightTimelineResponse"];
+                    };
+                };
+                /** @description Not Modified — `If-None-Match` matched the current weak `ETag`. Empty body. */
+                304: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Missing/invalid API key (`unauthorized`). */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Requires a Pro or Business plan (`tier_required`). Answered before the fight or fighter is looked up. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found (`not_found`; staged-org data 404s until the org is promoted). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rate limited (`rate_limited`) or monthly quota reached (`quota_exceeded`). Honor `Retry-After`. */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Something broke on our side (`internal_error`). It has been logged under the `request_id`. */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fights/{id}/positions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Position stats: time by range, control by position (Pro+)
+         * @description Where one settled UFC bout was fought and who held control, from the official fight statistics (tracked reliably from 2007): `totals` is one line per fighter for the whole bout (corner `a`, then `b`) and `rounds` carries the same lines for each round. Requires a Pro or Business plan: a lower plan gets 403 `tier_required`, answered before the fight is looked up.
+         *
+         *     Each line: `time` (`standing_sec`, `distance_sec`, `clinch_sec`, `ground_sec`, `neutral_sec`) is shared by both fighters — standing = distance + clinch, standing + ground = fight time, neutral = nobody in control. `control` is THIS fighter's control time: `total_sec` = `clinch_sec` + `ground_sec`, and the ground splits into `back_sec`, `mount_sec`, `side_sec`, `half_guard_sec`, `guard_sec` and `misc_ground_sec`. `sig_strikes` is significant strikes by position (`distance` / `clinch` / `ground`), then target (`head` / `body` / `leg`), each with `landed` and `attempted`; `total_strikes` is every strike by `head` / `body` / `leg` / `clinch` / `ground`. **null means not tracked for that bout; 0 is a real zero.** Times are whole seconds. `meta.official` is true once every line is the official post-fight figure.
+         *
+         *     Settled bouts only (`completed` or `no_contest`). A bout that is not settled yet, a bout of another promotion or one whose positions were not tracked answers 200 with empty lists and `meta.note`; 404 is reserved for an unknown fight. `meta.source` is `ufc-official`.
+         *
+         *     For example, in fight 59652 (Leon Edwards vs Kamaru Usman, UFC 286) the whole-bout line of fighter 401 carries `standing_sec` 1398, `distance_sec` 1147, `clinch_sec` 251, `ground_sec` 102 and `neutral_sec` 1197, every `control` field 0, and at distance 32 of 65 significant strikes to the head, 29 of 32 to the body and 50 of 53 to the leg. The example carries both whole-bout lines and round 1 of the five rounds.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Whole-bout lines and the per-round lines */
+                200: {
+                    headers: {
+                        /** @description Weak validator over the body, e.g. `W/"GKrimLo826WBqG27jbNFsW2ZHmA"`. Send it back as `If-None-Match` to get a 304. */
+                        ETag?: string;
+                        /** @description Always `private, no-cache`. */
+                        "Cache-Control"?: string;
+                        /** @description Monthly request quota of the plan. */
+                        "X-RateLimit-Limit"?: number;
+                        /** @description Requests left this month. */
+                        "X-RateLimit-Remaining"?: number;
+                        /** @description Unix seconds of the monthly reset. */
+                        "X-RateLimit-Reset"?: number;
+                        /** @description Quote it to support; the same id is in every error body. */
+                        "x-request-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "data": {
+                         *         "totals": [
+                         *           {
+                         *             "fighter_id": 401,
+                         *             "corner": "a",
+                         *             "time": {
+                         *               "standing_sec": 1398,
+                         *               "distance_sec": 1147,
+                         *               "clinch_sec": 251,
+                         *               "ground_sec": 102,
+                         *               "neutral_sec": 1197
+                         *             },
+                         *             "control": {
+                         *               "total_sec": 0,
+                         *               "clinch_sec": 0,
+                         *               "ground_sec": 0,
+                         *               "back_sec": 0,
+                         *               "mount_sec": 0,
+                         *               "side_sec": 0,
+                         *               "half_guard_sec": 0,
+                         *               "guard_sec": 0,
+                         *               "misc_ground_sec": 0
+                         *             },
+                         *             "sig_strikes": {
+                         *               "distance": {
+                         *                 "head": {
+                         *                   "landed": 32,
+                         *                   "attempted": 65
+                         *                 },
+                         *                 "body": {
+                         *                   "landed": 29,
+                         *                   "attempted": 32
+                         *                 },
+                         *                 "leg": {
+                         *                   "landed": 50,
+                         *                   "attempted": 53
+                         *                 }
+                         *               },
+                         *               "clinch": {
+                         *                 "head": {
+                         *                   "landed": 2,
+                         *                   "attempted": 4
+                         *                 },
+                         *                 "body": {
+                         *                   "landed": 7,
+                         *                   "attempted": 7
+                         *                 },
+                         *                 "leg": {
+                         *                   "landed": 0,
+                         *                   "attempted": 0
+                         *                 }
+                         *               },
+                         *               "ground": {
+                         *                 "head": {
+                         *                   "landed": 0,
+                         *                   "attempted": 0
+                         *                 },
+                         *                 "body": {
+                         *                   "landed": 0,
+                         *                   "attempted": 0
+                         *                 },
+                         *                 "leg": {
+                         *                   "landed": 0,
+                         *                   "attempted": 0
+                         *                 }
+                         *               }
+                         *             },
+                         *             "total_strikes": {
+                         *               "head": {
+                         *                 "landed": 36,
+                         *                 "attempted": 71
+                         *               },
+                         *               "body": {
+                         *                 "landed": 37,
+                         *                 "attempted": 40
+                         *               },
+                         *               "leg": {
+                         *                 "landed": 50,
+                         *                 "attempted": 53
+                         *               },
+                         *               "clinch": {
+                         *                 "landed": 12,
+                         *                 "attempted": 14
+                         *               },
+                         *               "ground": {
+                         *                 "landed": 0,
+                         *                 "attempted": 0
+                         *               }
+                         *             }
+                         *           },
+                         *           {
+                         *             "fighter_id": 1204,
+                         *             "corner": "b",
+                         *             "time": {
+                         *               "standing_sec": 1398,
+                         *               "distance_sec": 1147,
+                         *               "clinch_sec": 251,
+                         *               "ground_sec": 102,
+                         *               "neutral_sec": 1197
+                         *             },
+                         *             "control": {
+                         *               "total_sec": 303,
+                         *               "clinch_sec": 201,
+                         *               "ground_sec": 102,
+                         *               "back_sec": 8,
+                         *               "mount_sec": 0,
+                         *               "side_sec": 0,
+                         *               "half_guard_sec": 32,
+                         *               "guard_sec": 0,
+                         *               "misc_ground_sec": 62
+                         *             },
+                         *             "sig_strikes": {
+                         *               "distance": {
+                         *                 "head": {
+                         *                   "landed": 40,
+                         *                   "attempted": 140
+                         *                 },
+                         *                 "body": {
+                         *                   "landed": 19,
+                         *                   "attempted": 29
+                         *                 },
+                         *                 "leg": {
+                         *                   "landed": 6,
+                         *                   "attempted": 8
+                         *                 }
+                         *               },
+                         *               "clinch": {
+                         *                 "head": {
+                         *                   "landed": 16,
+                         *                   "attempted": 22
+                         *                 },
+                         *                 "body": {
+                         *                   "landed": 5,
+                         *                   "attempted": 5
+                         *                 },
+                         *                 "leg": {
+                         *                   "landed": 0,
+                         *                   "attempted": 0
+                         *                 }
+                         *               },
+                         *               "ground": {
+                         *                 "head": {
+                         *                   "landed": 1,
+                         *                   "attempted": 1
+                         *                 },
+                         *                 "body": {
+                         *                   "landed": 0,
+                         *                   "attempted": 0
+                         *                 },
+                         *                 "leg": {
+                         *                   "landed": 0,
+                         *                   "attempted": 0
+                         *                 }
+                         *               }
+                         *             },
+                         *             "total_strikes": {
+                         *               "head": {
+                         *                 "landed": 64,
+                         *                 "attempted": 171
+                         *               },
+                         *               "body": {
+                         *                 "landed": 36,
+                         *                 "attempted": 46
+                         *               },
+                         *               "leg": {
+                         *                 "landed": 13,
+                         *                 "attempted": 15
+                         *               },
+                         *               "clinch": {
+                         *                 "landed": 36,
+                         *                 "attempted": 43
+                         *               },
+                         *               "ground": {
+                         *                 "landed": 12,
+                         *                 "attempted": 12
+                         *               }
+                         *             }
+                         *           }
+                         *         ],
+                         *         "rounds": [
+                         *           {
+                         *             "round": 1,
+                         *             "fighters": [
+                         *               {
+                         *                 "fighter_id": 401,
+                         *                 "corner": "a",
+                         *                 "time": {
+                         *                   "standing_sec": 300,
+                         *                   "distance_sec": 276,
+                         *                   "clinch_sec": 24,
+                         *                   "ground_sec": 0,
+                         *                   "neutral_sec": 281
+                         *                 },
+                         *                 "control": {
+                         *                   "total_sec": 0,
+                         *                   "clinch_sec": 0,
+                         *                   "ground_sec": 0,
+                         *                   "back_sec": 0,
+                         *                   "mount_sec": 0,
+                         *                   "side_sec": 0,
+                         *                   "half_guard_sec": 0,
+                         *                   "guard_sec": 0,
+                         *                   "misc_ground_sec": 0
+                         *                 },
+                         *                 "sig_strikes": {
+                         *                   "distance": {
+                         *                     "head": {
+                         *                       "landed": 5,
+                         *                       "attempted": 11
+                         *                     },
+                         *                     "body": {
+                         *                       "landed": 6,
+                         *                       "attempted": 6
+                         *                     },
+                         *                     "leg": {
+                         *                       "landed": 9,
+                         *                       "attempted": 9
+                         *                     }
+                         *                   },
+                         *                   "clinch": {
+                         *                     "head": {
+                         *                       "landed": 0,
+                         *                       "attempted": 0
+                         *                     },
+                         *                     "body": {
+                         *                       "landed": 0,
+                         *                       "attempted": 0
+                         *                     },
+                         *                     "leg": {
+                         *                       "landed": 0,
+                         *                       "attempted": 0
+                         *                     }
+                         *                   },
+                         *                   "ground": {
+                         *                     "head": {
+                         *                       "landed": 0,
+                         *                       "attempted": 0
+                         *                     },
+                         *                     "body": {
+                         *                       "landed": 0,
+                         *                       "attempted": 0
+                         *                     },
+                         *                     "leg": {
+                         *                       "landed": 0,
+                         *                       "attempted": 0
+                         *                     }
+                         *                   }
+                         *                 },
+                         *                 "total_strikes": {
+                         *                   "head": {
+                         *                     "landed": 5,
+                         *                     "attempted": 11
+                         *                   },
+                         *                   "body": {
+                         *                     "landed": 6,
+                         *                     "attempted": 6
+                         *                   },
+                         *                   "leg": {
+                         *                     "landed": 9,
+                         *                     "attempted": 9
+                         *                   },
+                         *                   "clinch": {
+                         *                     "landed": 0,
+                         *                     "attempted": 0
+                         *                   },
+                         *                   "ground": {
+                         *                     "landed": 0,
+                         *                     "attempted": 0
+                         *                   }
+                         *                 }
+                         *               },
+                         *               {
+                         *                 "fighter_id": 1204,
+                         *                 "corner": "b",
+                         *                 "time": {
+                         *                   "standing_sec": 300,
+                         *                   "distance_sec": 276,
+                         *                   "clinch_sec": 24,
+                         *                   "ground_sec": 0,
+                         *                   "neutral_sec": 281
+                         *                 },
+                         *                 "control": {
+                         *                   "total_sec": 19,
+                         *                   "clinch_sec": 19,
+                         *                   "ground_sec": 0,
+                         *                   "back_sec": 0,
+                         *                   "mount_sec": 0,
+                         *                   "side_sec": 0,
+                         *                   "half_guard_sec": 0,
+                         *                   "guard_sec": 0,
+                         *                   "misc_ground_sec": 0
+                         *                 },
+                         *                 "sig_strikes": {
+                         *                   "distance": {
+                         *                     "head": {
+                         *                       "landed": 5,
+                         *                       "attempted": 32
+                         *                     },
+                         *                     "body": {
+                         *                       "landed": 6,
+                         *                       "attempted": 8
+                         *                     },
+                         *                     "leg": {
+                         *                       "landed": 1,
+                         *                       "attempted": 2
+                         *                     }
+                         *                   },
+                         *                   "clinch": {
+                         *                     "head": {
+                         *                       "landed": 0,
+                         *                       "attempted": 0
+                         *                     },
+                         *                     "body": {
+                         *                       "landed": 0,
+                         *                       "attempted": 0
+                         *                     },
+                         *                     "leg": {
+                         *                       "landed": 0,
+                         *                       "attempted": 0
+                         *                     }
+                         *                   },
+                         *                   "ground": {
+                         *                     "head": {
+                         *                       "landed": 0,
+                         *                       "attempted": 0
+                         *                     },
+                         *                     "body": {
+                         *                       "landed": 0,
+                         *                       "attempted": 0
+                         *                     },
+                         *                     "leg": {
+                         *                       "landed": 0,
+                         *                       "attempted": 0
+                         *                     }
+                         *                   }
+                         *                 },
+                         *                 "total_strikes": {
+                         *                   "head": {
+                         *                     "landed": 5,
+                         *                     "attempted": 32
+                         *                   },
+                         *                   "body": {
+                         *                     "landed": 6,
+                         *                     "attempted": 8
+                         *                   },
+                         *                   "leg": {
+                         *                     "landed": 2,
+                         *                     "attempted": 3
+                         *                   },
+                         *                   "clinch": {
+                         *                     "landed": 1,
+                         *                     "attempted": 1
+                         *                   },
+                         *                   "ground": {
+                         *                     "landed": 0,
+                         *                     "attempted": 0
+                         *                   }
+                         *                 }
+                         *               }
+                         *             ]
+                         *           }
+                         *         ]
+                         *       },
+                         *       "meta": {
+                         *         "fight_id": 59652,
+                         *         "source": "ufc-official",
+                         *         "official": true,
+                         *         "note": "null means not tracked for this bout; 0 is a real zero. Time fields are whole seconds."
+                         *       }
+                         *     }
+                         */
+                        "application/json": components["schemas"]["FightPositionsResponse"];
+                    };
+                };
+                /** @description Not Modified — `If-None-Match` matched the current weak `ETag`. Empty body. */
+                304: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Missing/invalid API key (`unauthorized`). */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Requires a Pro or Business plan (`tier_required`). Answered before the fight or fighter is looked up. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found (`not_found`; staged-org data 404s until the org is promoted). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rate limited (`rate_limited`) or monthly quota reached (`quota_exceeded`). Honor `Retry-After`. */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Something broke on our side (`internal_error`). It has been logged under the `request_id`. */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/scorecards/splits": {
         parameters: {
             query?: never;
@@ -5781,6 +6588,371 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/fighters/{idOrSlug}/discipline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Discipline: fouls committed and drawn (Pro+)
+         * @description The confirmed fouls in a fighter's UFC bouts, both the ones the fighter committed and the ones committed against them (`drawn`): eye pokes and low blows from the official in-fight log, plus every other foul (an illegal knee to a grounded opponent, an upkick, a headbutt, a bite, a fence grab) that a commission point deduction or the official result confirms. Requires a Pro or Business plan: a lower plan gets 403 `tier_required`, answered before the fighter is looked up.
+         *
+         *     `tracked_fights` and `cage_seconds` cover the fighter's settled UFC bouts (Dana White's Contender Series included) that carry a log since `meta.coverage_since` (2018-12-08, the first card whose stoppages carry a reason; earlier bouts are left out, never counted as foul-free). `committed` / `drawn` are `total`, `eye_pokes`, `low_blows` and `other`; `points_deducted` is what the commission has taken from this fighter; `stoppage_sec` is the real time bouts were stopped for this fighter's fouls; `fouls_per_15` is fouls committed per 15 minutes of cage time (null under 5 tracked bouts or 30 minutes). `incidents` lists every confirmed foul, most recent first: `fight_id`, `date`, `event`, `opponent`, `role` (`committed` or `drawn`), `reason` (the foul: `eye_poke`, `low_blow`, `illegal_knee`, `illegal_kick`, `headbutt`, `illegal_strike`, `fence`, `biting`, `other`), `basis` (`log`, `deduction` or `result` — which record confirms it), `round`, `elapsed_sec` (seconds elapsed in the round; null when no stoppage in the log is tied to it), `stoppage_sec`, `points_deducted` and `ended_bout`. `meta.weight_class` is the class the tracked bouts were most often fought at.
+         *
+         *     It counts fouls on the record: a referee stoppage the log labels, a point the commission took, or the foul a bout ended on. A stoppage the log calls `generic` with no such record behind it is never counted, and a warning given in passing is in no record. **A recorded foul is not a ruling on intent.** Zero is a result: a fighter with tracked bouts and no fouls gets zeros. `data` is null (with `meta.note`) only under 3 tracked bouts with no recorded foul. `meta.source` is `ufc-official`. The example lists two of the fighter's seven incidents.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Numeric id or slug of the fighter. Stale slugs 308-redirect to the canonical URL. */
+                    idOrSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The discipline record, or null */
+                200: {
+                    headers: {
+                        /** @description Weak validator over the body, e.g. `W/"GKrimLo826WBqG27jbNFsW2ZHmA"`. Send it back as `If-None-Match` to get a 304. */
+                        ETag?: string;
+                        /** @description Always `private, no-cache`. */
+                        "Cache-Control"?: string;
+                        /** @description Monthly request quota of the plan. */
+                        "X-RateLimit-Limit"?: number;
+                        /** @description Requests left this month. */
+                        "X-RateLimit-Remaining"?: number;
+                        /** @description Unix seconds of the monthly reset. */
+                        "X-RateLimit-Reset"?: number;
+                        /** @description Quote it to support; the same id is in every error body. */
+                        "x-request-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "data": {
+                         *         "tracked_fights": 10,
+                         *         "cage_seconds": 11549,
+                         *         "committed": {
+                         *           "total": 7,
+                         *           "eye_pokes": 3,
+                         *           "low_blows": 3,
+                         *           "other": 1
+                         *         },
+                         *         "drawn": {
+                         *           "total": 0,
+                         *           "eye_pokes": 0,
+                         *           "low_blows": 0,
+                         *           "other": 0
+                         *         },
+                         *         "points_deducted": 1,
+                         *         "stoppage_sec": 166,
+                         *         "fouls_per_15": 0.546,
+                         *         "incidents": [
+                         *           {
+                         *             "fight_id": 59652,
+                         *             "date": "2023-03-18",
+                         *             "event": {
+                         *               "slug": "ufc-286-2023-03-18",
+                         *               "title": "UFC 286: Edwards vs Usman 3"
+                         *             },
+                         *             "opponent": {
+                         *               "slug": "kamaru-usman",
+                         *               "name": "Kamaru Usman"
+                         *             },
+                         *             "role": "committed",
+                         *             "reason": "fence",
+                         *             "basis": "deduction",
+                         *             "round": 3,
+                         *             "elapsed_sec": 90,
+                         *             "stoppage_sec": 48,
+                         *             "points_deducted": 1,
+                         *             "ended_bout": false
+                         *           },
+                         *           {
+                         *             "fight_id": 59652,
+                         *             "date": "2023-03-18",
+                         *             "event": {
+                         *               "slug": "ufc-286-2023-03-18",
+                         *               "title": "UFC 286: Edwards vs Usman 3"
+                         *             },
+                         *             "opponent": {
+                         *               "slug": "kamaru-usman",
+                         *               "name": "Kamaru Usman"
+                         *             },
+                         *             "role": "committed",
+                         *             "reason": "low_blow",
+                         *             "basis": "log",
+                         *             "round": 3,
+                         *             "elapsed_sec": 175,
+                         *             "stoppage_sec": 23,
+                         *             "points_deducted": 0,
+                         *             "ended_bout": false
+                         *           }
+                         *         ]
+                         *       },
+                         *       "meta": {
+                         *         "fighter_id": 401,
+                         *         "source": "ufc-official",
+                         *         "coverage_since": "2018-12-08",
+                         *         "weight_class": "Welterweight",
+                         *         "note": "UFC bouts only. Counts fouls on the official record: eye pokes and low blows from the official in-fight log, plus any other foul (illegal knee, upkick, headbutt, fence grab, ...) confirmed by a commission point deduction or by the result the bout ended on. A recorded foul is not a ruling on intent. fouls_per_15 needs 5 tracked bouts and 30 minutes of cage time."
+                         *       }
+                         *     }
+                         */
+                        "application/json": components["schemas"]["FighterDisciplineResponse"];
+                    };
+                };
+                /** @description Not Modified — `If-None-Match` matched the current weak `ETag`. Empty body. */
+                304: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description The slug is a retired alias (the event or fighter was renamed). Follow `Location` to the canonical URL; the numeric-id form never redirects. */
+                308: {
+                    headers: {
+                        /** @description Canonical `/v1/...` path. */
+                        Location?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Missing/invalid API key (`unauthorized`). */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Requires a Pro or Business plan (`tier_required`). Answered before the fight or fighter is looked up. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found (`not_found`; staged-org data 404s until the org is promoted). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rate limited (`rate_limited`) or monthly quota reached (`quota_exceeded`). Honor `Retry-After`. */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Something broke on our side (`internal_error`). It has been logged under the `request_id`. */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fighters/{idOrSlug}/positions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Career position profile: time by range, control for and against (Pro+)
+         * @description Where a fighter's bouts happen, over their career: the share of cage time at distance, in the clinch and on the ground, and who held control in each position — the fighter (`for_sec`) against their opponents (`against_sec`). Computed over the fighter's settled bouts whose positions were tracked in the official UFC fight statistics (reliably from 2007). Requires a Pro or Business plan: a lower plan gets 403 `tier_required`, answered before the fighter is looked up.
+         *
+         *     `tracked_fights` and `cage_seconds` say how much that is. `time` carries `distance_sec` / `clinch_sec` / `ground_sec` and their 0–1 shares of `cage_seconds`. `control.for_sec` / `against_sec` are total control time; `control.by_position` splits it into `back`, `mount`, `side`, `half_guard`, `guard` and `clinch` (a position with under 10 seconds either way is left out, and ground control outside the named positions is in the totals only). `data` is null (with `meta.note`) under 3 bouts with tracked positions. `meta.source` is `ufc-official`.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Numeric id or slug of the fighter. Stale slugs 308-redirect to the canonical URL. */
+                    idOrSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The position profile, or null */
+                200: {
+                    headers: {
+                        /** @description Weak validator over the body, e.g. `W/"GKrimLo826WBqG27jbNFsW2ZHmA"`. Send it back as `If-None-Match` to get a 304. */
+                        ETag?: string;
+                        /** @description Always `private, no-cache`. */
+                        "Cache-Control"?: string;
+                        /** @description Monthly request quota of the plan. */
+                        "X-RateLimit-Limit"?: number;
+                        /** @description Requests left this month. */
+                        "X-RateLimit-Remaining"?: number;
+                        /** @description Unix seconds of the monthly reset. */
+                        "X-RateLimit-Reset"?: number;
+                        /** @description Quote it to support; the same id is in every error body. */
+                        "x-request-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "data": {
+                         *         "tracked_fights": 20,
+                         *         "cage_seconds": 20136,
+                         *         "time": {
+                         *           "distance_sec": 9885,
+                         *           "clinch_sec": 4171,
+                         *           "ground_sec": 6080,
+                         *           "distance_share": 0.491,
+                         *           "clinch_share": 0.207,
+                         *           "ground_share": 0.302
+                         *         },
+                         *         "control": {
+                         *           "for_sec": 4226,
+                         *           "against_sec": 5353,
+                         *           "by_position": [
+                         *             {
+                         *               "position": "back",
+                         *               "for_sec": 619,
+                         *               "against_sec": 715
+                         *             },
+                         *             {
+                         *               "position": "mount",
+                         *               "for_sec": 51,
+                         *               "against_sec": 293
+                         *             },
+                         *             {
+                         *               "position": "side",
+                         *               "for_sec": 10,
+                         *               "against_sec": 133
+                         *             },
+                         *             {
+                         *               "position": "half_guard",
+                         *               "for_sec": 470,
+                         *               "against_sec": 702
+                         *             },
+                         *             {
+                         *               "position": "guard",
+                         *               "for_sec": 387,
+                         *               "against_sec": 437
+                         *             },
+                         *             {
+                         *               "position": "clinch",
+                         *               "for_sec": 1544,
+                         *               "against_sec": 1957
+                         *             }
+                         *           ]
+                         *         }
+                         *       },
+                         *       "meta": {
+                         *         "fighter_id": 401,
+                         *         "source": "ufc-official",
+                         *         "note": "Whole-bout position stats over UFC-feed bouts whose positions were tracked (reliably from 2007). `control.for_sec` is this fighter in control, `against_sec` their opponents."
+                         *       }
+                         *     }
+                         */
+                        "application/json": components["schemas"]["FighterPositionsResponse"];
+                    };
+                };
+                /** @description Not Modified — `If-None-Match` matched the current weak `ETag`. Empty body. */
+                304: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description The slug is a retired alias (the event or fighter was renamed). Follow `Location` to the canonical URL; the numeric-id form never redirects. */
+                308: {
+                    headers: {
+                        /** @description Canonical `/v1/...` path. */
+                        Location?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Missing/invalid API key (`unauthorized`). */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Requires a Pro or Business plan (`tier_required`). Answered before the fight or fighter is looked up. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found (`not_found`; staged-org data 404s until the org is promoted). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rate limited (`rate_limited`) or monthly quota reached (`quota_exceeded`). Honor `Retry-After`. */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Something broke on our side (`internal_error`). It has been logged under the `request_id`. */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/compare": {
         parameters: {
             query?: never;
@@ -7025,7 +8197,7 @@ export interface paths {
         };
         /**
          * One stat leaderboard
-         * @description One board from UFCalendar's Record Book rollup (rebuilt daily) for ONE promotion — `org` is required; there is no cross-promotion board on the API. `metric` picks the board; its `scope` decides what a row is: `career` rows are fighters, `single_fight` and `round` rows are PERFORMANCES (one fighter can hold several; `fight` names the bout and opponent, `round_number` the round), `event` rows are CARDS (`event`, no fighter), `division` rows are WEIGHT CLASSES (`division`, no fighter). `value` is in `meta.metric.unit` (`rate` is a 0–1 fraction; `seconds`, `per_minute`, `per_15_minutes` as named); `value_secondary` is the denominator or context named by `meta.metric.secondary` (e.g. attempts behind an accuracy, the round of a fastest finish); `sample_n` is the bouts (or fighters) behind the value. `direction` is the ranking order, not a verdict. `rank` is the rollup's own position; equal values are a tie — `display_rank` and `tied` say so. Narrow with `division`, `country` (ISO-2, fighters of that nationality; population `all` only — combining it with `population=active` 400s `invalid_filter`) or `population=active` (a bout in the last ~18 months). Boards need a minimum sample, so a narrow slice can 404. Errors: `invalid_org`, `invalid_metric`, `invalid_division`, `invalid_country`, `invalid_population`, `invalid_filter`.
+         * @description One board from UFCalendar's Record Book rollup (rebuilt daily) for ONE promotion — `org` is required; there is no cross-promotion board on the API. `metric` picks the board; its `scope` decides what a row is: `career` rows are fighters, `single_fight` and `round` rows are PERFORMANCES (one fighter can hold several; `fight` names the bout and opponent, `round_number` the round), `event` rows are CARDS (`event`, no fighter), `division` rows are WEIGHT CLASSES (`division`, no fighter). `value` is in `meta.metric.unit` (`rate` is a 0–1 fraction; `seconds`, `per_minute`, `per_15_minutes` as named); `value_secondary` is the denominator or context named by `meta.metric.secondary` (e.g. attempts behind an accuracy, the round of a fastest finish); `sample_n` is the bouts (or fighters) behind the value. `direction` is the ranking order, not a verdict. `rank` is the rollup's own position; equal values are a tie — `display_rank` and `tied` say so. Narrow with `division`, `country` (ISO-2, fighters of that nationality; population `all` only — combining it with `population=active` 400s `invalid_filter`) or `population=active` (a bout in the last ~18 months). Boards need a minimum sample, so a narrow slice can 404. Errors: `invalid_org`, `invalid_metric`, `invalid_division`, `invalid_country`, `invalid_population`, `invalid_filter`. The `discipline` boards (confirmed fouls — eye pokes and low blows from the official in-fight log, plus any other foul a commission point deduction or the official result confirms — UFC only, December 2018 onward) need a Pro plan or higher: 403 `tier_required` below.
          */
         get: {
             parameters: {
@@ -7033,7 +8205,7 @@ export interface paths {
                     /** @description Launch org slug (required): `ufc`, `pfl`, `oktagon`, `bkfc` or `rizin`. */
                     org: "ufc" | "pfl" | "oktagon" | "bkfc" | "rizin";
                     /** @description Board metric slug. */
-                    metric: "total_fights" | "wins" | "decision_wins" | "title_fight_wins" | "bonuses" | "finishes" | "win_streak" | "total_fight_seconds" | "avg_fight_seconds_short" | "avg_fight_seconds_long" | "control_time_sec" | "control_time_pct" | "sig_strikes_landed" | "total_strikes_landed" | "slpm" | "sapm" | "striking_differential" | "sig_strike_accuracy" | "sig_strike_defense" | "knockdowns" | "knockdowns_per_15" | "knockouts" | "takedowns_landed" | "td_avg" | "takedown_accuracy" | "takedown_defense" | "submission_attempts" | "sub_avg_per_15" | "submissions" | "fastest_finish" | "fastest_knockout" | "fastest_submission" | "longest_fight_seconds" | "most_sig_strikes_fight" | "most_takedowns_fight" | "most_knockdowns_fight" | "longest_control_fight" | "most_sig_strikes_round" | "most_takedowns_round" | "most_knockdowns_round" | "most_finishes_event" | "most_knockouts_event" | "shortest_card_seconds" | "finish_rate" | "ko_rate" | "sub_rate" | "decision_rate" | "avg_fight_seconds";
+                    metric: "total_fights" | "wins" | "decision_wins" | "title_fight_wins" | "bonuses" | "finishes" | "win_streak" | "total_fight_seconds" | "avg_fight_seconds_short" | "avg_fight_seconds_long" | "control_time_sec" | "control_time_pct" | "sig_strikes_landed" | "total_strikes_landed" | "slpm" | "sapm" | "striking_differential" | "sig_strike_accuracy" | "sig_strike_defense" | "knockdowns" | "knockdowns_per_15" | "knockouts" | "takedowns_landed" | "td_avg" | "takedown_accuracy" | "takedown_defense" | "submission_attempts" | "sub_avg_per_15" | "submissions" | "fastest_finish" | "fastest_knockout" | "fastest_submission" | "longest_fight_seconds" | "most_sig_strikes_fight" | "most_takedowns_fight" | "most_knockdowns_fight" | "longest_control_fight" | "most_sig_strikes_round" | "most_takedowns_round" | "most_knockdowns_round" | "fouls_committed" | "eye_pokes_committed" | "low_blows_committed" | "fouls_drawn" | "fouls_per_15" | "most_fouls_fight" | "longest_foul_stoppage_fight" | "most_fouls_event" | "most_finishes_event" | "most_knockouts_event" | "shortest_card_seconds" | "finish_rate" | "ko_rate" | "sub_rate" | "decision_rate" | "avg_fight_seconds" | "fouls_per_15_division";
                     /** @description One weight class. */
                     division?: "strawweight" | "flyweight" | "bantamweight" | "featherweight" | "lightweight" | "welterweight" | "super-welterweight" | "middleweight" | "light-heavyweight" | "heavyweight" | "super-heavyweight" | "womens-strawweight" | "womens-flyweight" | "womens-bantamweight" | "womens-featherweight" | "atomweight" | "ironweight";
                     /** @description `active` = fighters with a bout in the last ~18 months. */
@@ -7152,7 +8324,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (100 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
+                /** @description Requires Pro or above (`tier_required`), or a plan bought directly rather than through RapidAPI (`direct_plan_required`). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -7207,7 +8379,7 @@ export interface paths {
         };
         /**
          * The Record Book
-         * @description Every leaderboard's top rows for ONE promotion in one call — `org` is required — grouped by category (`fights`, `time`, `striking`, `grappling`, `records`): `data` is `[{ category, boards: [{ metric, rows }] }]`, rows exactly as on `/v1/stats/leaders`. `top` rows per board (default 10, max 25). Same `division` / `country` / `population` narrowing as `/v1/stats/leaders`, plus `scope` for one kind of board (`career`, `single_fight`, `round`, `division`, `event`). A board appears only when it has at least 3 rows (or `top`, if smaller); inside one `division`, the division-ranking boards are left out. An empty slice returns `[]` with `meta.note`.
+         * @description Every leaderboard's top rows for ONE promotion in one call — `org` is required — grouped by category (`fights`, `time`, `striking`, `grappling`, `discipline`, `records`; `discipline` is included on Pro plans and above and simply absent below, with `meta.plan_note`): `data` is `[{ category, boards: [{ metric, rows }] }]`, rows exactly as on `/v1/stats/leaders`. `top` rows per board (default 10, max 25). Same `division` / `country` / `population` narrowing as `/v1/stats/leaders`, plus `scope` for one kind of board (`career`, `single_fight`, `round`, `division`, `event`). A board appears only when it has at least 3 rows (or `top`, if smaller); inside one `division`, the division-ranking boards are left out. An empty slice returns `[]` with `meta.note`.
          */
         get: {
             parameters: {
@@ -10575,6 +11747,292 @@ export interface components {
             opponent_fighter_id: number | null;
             fight_id: number | null;
         };
+        /** @description One row of the official in-fight log. */
+        TimelineAction: {
+            /** @description The official log's own action name, lower-cased. Open vocabulary — a new action lands as a new value: `fight_open`, `walkout`, `tale_of_the_tape`, `staredown`, `round_start`, `round_end`, `takedown`, `takedown_attempt`, `knockdown`, `submission_attempt`, `reversal`, `round_pause`, `pause_reason_eye_poke`, `pause_reason_low_blow`, `pause_reason_doctor`, `pause_reason_generic`, `round_unpause`, `fight_over`, `results`, `fight_complete`, `unofficial_winner_kotko`, `unofficial_winner_submission`, `unofficial_winner_decision`. */
+            type: string;
+            /** @description Round the action belongs to; null for actions outside a round (walkouts, results). */
+            round: number | null;
+            /** @description Seconds elapsed in the round (0 = the bell). Null when the log carries no round clock for the action. */
+            elapsed_sec: number | null;
+            /**
+             * Format: date-time
+             * @description When the action was logged (UTC).
+             */
+            at: string | null;
+            /** @description The fighter the action belongs to; null for referee and broadcast actions. On a `pause_reason_eye_poke` / `pause_reason_low_blow` row it is the fighter who COMMITTED the foul. */
+            fighter_id: number | null;
+            /**
+             * @description `a` = the bout's `fighter_a`, `b` = `fighter_b`; null with `fighter_id`.
+             * @enum {string|null}
+             */
+            corner: "a" | "b" | null;
+        };
+        /**
+         * @description Why the referee stopped the action, as the log labels it. `eye_poke` and `low_blow` are fouls; `doctor` is a doctor check; `generic` is everything else — a lost mouthpiece, a replay, but ALSO any foul the log has no label for (an illegal knee, an upkick, a bite). A `generic` stoppage is a foul only when `is_foul` says so.
+         * @enum {string}
+         */
+        StoppageReason: "eye_poke" | "low_blow" | "doctor" | "generic";
+        /**
+         * @description What the foul was. `eye_poke` and `low_blow` come labelled from the log; the rest are read from the commission's deduction reason or the official result detail: `illegal_knee` (a knee to a grounded opponent), `illegal_kick` (an upkick, a soccer kick or a stomp), `headbutt`, `illegal_strike` (back of the head, spine, 12-6 elbow), `fence` (grabbing the fence or cage), `biting`, and `other` when the record names no foul this vocabulary covers.
+         * @enum {string}
+         */
+        FoulKind: "eye_poke" | "low_blow" | "illegal_knee" | "illegal_kick" | "headbutt" | "illegal_strike" | "fence" | "biting" | "other";
+        /**
+         * @description Which record confirms the foul: `log` = the in-fight log's own eye-poke / low-blow row; `deduction` = the athletic commission took a point for it; `result` = the bout ended on it (a disqualification, or a "could not continue" / no contest whose official detail describes a foul).
+         * @enum {string}
+         */
+        FoulBasis: "log" | "deduction" | "result";
+        /** @description The fighter who committed the foul. */
+        FoulCommitter: {
+            fighter_id: number;
+            /** @enum {string|null} */
+            corner: "a" | "b" | null;
+        };
+        /** @description One referee stoppage: the pause, its reason and the resume, paired — and, when a record confirms it, the foul behind it. */
+        TimelineStoppage: {
+            round: number | null;
+            /** @description Seconds elapsed in the round when the referee stopped the action. */
+            elapsed_sec: number | null;
+            /**
+             * Format: date-time
+             * @description When the action was stopped (UTC).
+             */
+            at: string | null;
+            /**
+             * Format: date-time
+             * @description When it resumed (UTC); null when the bout never resumed.
+             */
+            resumed_at: string | null;
+            /** @description Real seconds the bout was stopped (the fight clock is stopped, so this is wall-clock time). Null when the bout never resumed or the gap is implausible (over 15 minutes). */
+            duration_sec: number | null;
+            /** @description Null = a stoppage logged before reasons were recorded (before 2018-12-08): unlabelled, never "no foul". */
+            reason: components["schemas"]["StoppageReason"] | null;
+            /** @description true when a record confirms this stoppage was for a foul: a labelled `eye_poke` / `low_blow`, or a `generic` / unlabelled stoppage tied to a commission point deduction or to the foul the bout ended on. A `generic` stoppage with no such record is false. */
+            is_foul: boolean;
+            /** @description The confirmed foul; null when `is_foul` is false. */
+            foul: components["schemas"]["FoulKind"] | null;
+            /** @description Null when `is_foul` is false. */
+            foul_basis: components["schemas"]["FoulBasis"] | null;
+            /** @description The fighter who committed the foul. Null when it is not a foul, or when no record names the fighter (an accidental clash of heads). */
+            committed_by: components["schemas"]["FoulCommitter"] | null;
+            /** @description Points the commission deducted for this foul; 0 when none. */
+            points_deducted: number;
+            /** @description true when the bout ended on this foul (a disqualification or a "could not continue"). */
+            ended_bout: boolean;
+        };
+        /** @description One confirmed foul. A foul is listed once: a deduction for a logged low blow adds its points to that foul, and a result that names a foul already listed marks it `ended_bout`. */
+        FoulIncident: {
+            foul: components["schemas"]["FoulKind"];
+            basis: components["schemas"]["FoulBasis"];
+            /** @description Null when no record names the fighter. */
+            committed_by: components["schemas"]["FoulCommitter"] | null;
+            round: number | null;
+            /** @description Seconds elapsed in the round. Null when no stoppage in the log is tied to the foul (a point deducted for grabbing the fence with no pause logged). */
+            elapsed_sec: number | null;
+            /** @description Real seconds the bout was stopped for it; null when unmeasured. */
+            stoppage_sec: number | null;
+            points_deducted: number;
+            ended_bout: boolean;
+        };
+        /** @description Fouls one corner COMMITTED in the bout. A recorded foul is not a ruling on intent. */
+        FoulTally: {
+            fighter_id: number | null;
+            /** @description Eye pokes this fighter committed that stopped the action. */
+            eye_pokes: number;
+            /** @description Low blows this fighter committed that stopped the action. */
+            low_blows: number;
+            /** @description Every other confirmed foul this fighter committed (see `FoulKind`). */
+            other: number;
+            /** @description `eye_pokes` + `low_blows` + `other`. */
+            total: number;
+            /** @description Points the commission took from this fighter in the bout. */
+            points_deducted: number;
+            /** @description Real seconds the bout was stopped for this fighter's fouls. */
+            stoppage_sec: number;
+        };
+        FightTimeline: {
+            /** @description Round length for the bout's sport, in seconds (300 for MMA) — the scale `elapsed_sec` runs on. */
+            round_seconds: number;
+            /** @description Every logged action, in the order it happened. */
+            actions: components["schemas"]["TimelineAction"][];
+            /** @description Referee stoppages, in order. */
+            stoppages: components["schemas"]["TimelineStoppage"][];
+            /** @description Every confirmed foul of the bout in fight order — including fouls with no stoppage in the log and fouls nobody is named for. */
+            incidents: components["schemas"]["FoulIncident"][];
+            fouls: {
+                a: components["schemas"]["FoulTally"];
+                b: components["schemas"]["FoulTally"];
+            };
+        };
+        StrikeCount: {
+            landed: number | null;
+            attempted: number | null;
+        };
+        /** @description Where the bout (or round) was fought, in whole seconds. Shared by both fighters: `standing_sec` + `ground_sec` = fight time. */
+        PositionTime: {
+            /** @description `distance_sec` + `clinch_sec`. */
+            standing_sec: number | null;
+            distance_sec: number | null;
+            clinch_sec: number | null;
+            ground_sec: number | null;
+            /** @description Time nobody held control. */
+            neutral_sec: number | null;
+        };
+        /** @description Seconds THIS fighter held control, by position. */
+        PositionControl: {
+            /** @description `clinch_sec` + `ground_sec`. */
+            total_sec: number | null;
+            clinch_sec: number | null;
+            /** @description `back_sec` + `mount_sec` + `side_sec` + `half_guard_sec` + `guard_sec` + `misc_ground_sec`. */
+            ground_sec: number | null;
+            back_sec: number | null;
+            mount_sec: number | null;
+            side_sec: number | null;
+            half_guard_sec: number | null;
+            guard_sec: number | null;
+            misc_ground_sec: number | null;
+        };
+        StrikesByTarget: {
+            head: components["schemas"]["StrikeCount"];
+            body: components["schemas"]["StrikeCount"];
+            leg: components["schemas"]["StrikeCount"];
+        };
+        /** @description Significant strikes by position, then target. */
+        PositionSigStrikes: {
+            distance: components["schemas"]["StrikesByTarget"];
+            clinch: components["schemas"]["StrikesByTarget"];
+            ground: components["schemas"]["StrikesByTarget"];
+        };
+        /** @description Total strikes (significant or not) by target, plus the clinch and ground totals. */
+        PositionTotalStrikes: {
+            head: components["schemas"]["StrikeCount"];
+            body: components["schemas"]["StrikeCount"];
+            leg: components["schemas"]["StrikeCount"];
+            clinch: components["schemas"]["StrikeCount"];
+            ground: components["schemas"]["StrikeCount"];
+        };
+        /** @description One fighter's position stats for a bout or a round. null = not tracked for that bout; 0 = a real zero. */
+        PositionStatLine: {
+            fighter_id: number | null;
+            /**
+             * @description `a` = the bout's `fighter_a`, `b` = `fighter_b`.
+             * @enum {string|null}
+             */
+            corner: "a" | "b" | null;
+            time: components["schemas"]["PositionTime"];
+            control: components["schemas"]["PositionControl"];
+            sig_strikes: components["schemas"]["PositionSigStrikes"];
+            total_strikes: components["schemas"]["PositionTotalStrikes"];
+        };
+        PositionRound: {
+            round: number;
+            /** @description Corner a, then b. */
+            fighters: components["schemas"]["PositionStatLine"][];
+        };
+        FightPositions: {
+            /** @description The whole bout: one line per fighter, corner a then b. Empty when positions were not tracked. */
+            totals: components["schemas"]["PositionStatLine"][];
+            /** @description The same lines per round, in round order. */
+            rounds: components["schemas"]["PositionRound"][];
+        };
+        FoulCounts: {
+            /** @description `eye_pokes` + `low_blows` + `other`. */
+            total: number;
+            eye_pokes: number;
+            low_blows: number;
+            /** @description Every other confirmed foul (see `FoulKind`). */
+            other: number;
+        };
+        /**
+         * @description `committed` = by this fighter; `drawn` = by the opponent, against this fighter.
+         * @enum {string}
+         */
+        DisciplineRole: "committed" | "drawn";
+        DisciplineEvent: {
+            slug: string;
+            title: string;
+        };
+        DisciplineOpponent: {
+            slug: string | null;
+            name: string | null;
+        };
+        DisciplineIncident: {
+            fight_id: number;
+            /**
+             * Format: date
+             * @description UTC day of the card's `starts_at`.
+             */
+            date: string;
+            event: components["schemas"]["DisciplineEvent"];
+            opponent: components["schemas"]["DisciplineOpponent"];
+            role: components["schemas"]["DisciplineRole"];
+            /** @description What the foul was. */
+            reason: components["schemas"]["FoulKind"];
+            basis: components["schemas"]["FoulBasis"];
+            round: number | null;
+            /** @description Seconds elapsed in the round; null when no stoppage in the log is tied to the foul. */
+            elapsed_sec: number | null;
+            /** @description Real seconds the bout was stopped; null if it never resumed or was not timed. */
+            stoppage_sec: number | null;
+            /** @description Points the commission deducted for it; 0 when none. */
+            points_deducted: number;
+            /** @description true when the bout ended on this foul. */
+            ended_bout: boolean;
+        };
+        /** @description Confirmed fouls in a fighter's UFC bouts: the log's eye pokes and low blows, plus any other foul a commission point deduction or the official result confirms. A recorded foul is not a ruling on intent. */
+        FighterDiscipline: {
+            /** @description Settled UFC bouts since the coverage date that carry an in-fight log. */
+            tracked_fights: number;
+            /** @description Seconds fought across those bouts. */
+            cage_seconds: number;
+            committed: components["schemas"]["FoulCounts"];
+            drawn: components["schemas"]["FoulCounts"];
+            /** @description Points the commission has taken from THIS fighter across those bouts. */
+            points_deducted: number;
+            /** @description Real seconds bouts were stopped for THIS fighter's fouls. */
+            stoppage_sec: number;
+            /** @description Fouls committed per 15 minutes of cage time, to 3 places. Null under the sample floor (5 tracked bouts and 30 minutes). */
+            fouls_per_15: number | null;
+            /** @description Every confirmed foul this fighter committed or drew, most recent first. */
+            incidents: components["schemas"]["DisciplineIncident"][];
+        };
+        /**
+         * @description A position a fighter can hold control in.
+         * @enum {string}
+         */
+        ControlPosition: "back" | "mount" | "side" | "half_guard" | "guard" | "clinch";
+        ControlByPosition: {
+            position: components["schemas"]["ControlPosition"];
+            for_sec: number;
+            against_sec: number;
+        };
+        FighterPositionTime: {
+            distance_sec: number;
+            clinch_sec: number;
+            ground_sec: number;
+            /** @description Share of `cage_seconds`, 0–1 to 3 places. */
+            distance_share: number | null;
+            clinch_share: number | null;
+            ground_share: number | null;
+        };
+        FighterPositionControl: {
+            /** @description Seconds this fighter held control. */
+            for_sec: number;
+            /** @description Seconds their opponents held control. */
+            against_sec: number;
+            /** @description Strongest ground position first, the clinch last; a position with under 10 seconds either way is left out. */
+            by_position: components["schemas"]["ControlByPosition"][];
+        };
+        /** @description Where a fighter's bouts happen and who holds control, over their career. */
+        FighterPositions: {
+            /** @description Settled bouts whose positions were tracked. */
+            tracked_fights: number;
+            /** @description Seconds fought across those bouts (distance + clinch + ground). */
+            cage_seconds: number;
+            time: components["schemas"]["FighterPositionTime"];
+            control: components["schemas"]["FighterPositionControl"];
+        };
         RankedFighterRef: {
             id: number;
             slug: string | null;
@@ -10820,7 +12278,7 @@ export interface components {
          * @description Record Book category.
          * @enum {string}
          */
-        MetricCategory: "fights" | "time" | "striking" | "grappling" | "records";
+        MetricCategory: "fights" | "time" | "striking" | "grappling" | "discipline" | "records";
         /**
          * @description `rate` is a 0–1 fraction.
          * @enum {string}
@@ -10836,7 +12294,7 @@ export interface components {
              * @description Board metric slug.
              * @enum {string}
              */
-            slug: "total_fights" | "wins" | "decision_wins" | "title_fight_wins" | "bonuses" | "finishes" | "win_streak" | "total_fight_seconds" | "avg_fight_seconds_short" | "avg_fight_seconds_long" | "control_time_sec" | "control_time_pct" | "sig_strikes_landed" | "total_strikes_landed" | "slpm" | "sapm" | "striking_differential" | "sig_strike_accuracy" | "sig_strike_defense" | "knockdowns" | "knockdowns_per_15" | "knockouts" | "takedowns_landed" | "td_avg" | "takedown_accuracy" | "takedown_defense" | "submission_attempts" | "sub_avg_per_15" | "submissions" | "fastest_finish" | "fastest_knockout" | "fastest_submission" | "longest_fight_seconds" | "most_sig_strikes_fight" | "most_takedowns_fight" | "most_knockdowns_fight" | "longest_control_fight" | "most_sig_strikes_round" | "most_takedowns_round" | "most_knockdowns_round" | "most_finishes_event" | "most_knockouts_event" | "shortest_card_seconds" | "finish_rate" | "ko_rate" | "sub_rate" | "decision_rate" | "avg_fight_seconds";
+            slug: "total_fights" | "wins" | "decision_wins" | "title_fight_wins" | "bonuses" | "finishes" | "win_streak" | "total_fight_seconds" | "avg_fight_seconds_short" | "avg_fight_seconds_long" | "control_time_sec" | "control_time_pct" | "sig_strikes_landed" | "total_strikes_landed" | "slpm" | "sapm" | "striking_differential" | "sig_strike_accuracy" | "sig_strike_defense" | "knockdowns" | "knockdowns_per_15" | "knockouts" | "takedowns_landed" | "td_avg" | "takedown_accuracy" | "takedown_defense" | "submission_attempts" | "sub_avg_per_15" | "submissions" | "fastest_finish" | "fastest_knockout" | "fastest_submission" | "longest_fight_seconds" | "most_sig_strikes_fight" | "most_takedowns_fight" | "most_knockdowns_fight" | "longest_control_fight" | "most_sig_strikes_round" | "most_takedowns_round" | "most_knockdowns_round" | "fouls_committed" | "eye_pokes_committed" | "low_blows_committed" | "fouls_drawn" | "fouls_per_15" | "most_fouls_fight" | "longest_foul_stoppage_fight" | "most_fouls_event" | "most_finishes_event" | "most_knockouts_event" | "shortest_card_seconds" | "finish_rate" | "ko_rate" | "sub_rate" | "decision_rate" | "avg_fight_seconds" | "fouls_per_15_division";
             scope: components["schemas"]["MetricScope"];
             category: components["schemas"]["MetricCategory"];
             /**
@@ -11832,6 +13290,34 @@ export interface components {
                 ignored_params?: string[];
             };
         };
+        /** @description `actions` is empty (and `meta.note` says why) when the bout has no log or is not settled yet; 404 only for an unknown fight. */
+        FightTimelineResponse: {
+            data: components["schemas"]["FightTimeline"];
+            meta: {
+                fight_id: number;
+                /** @description Always `ufc-official`. */
+                source: string;
+                /** @description false on a card before 2018-12-08: its stoppages carry no reason. */
+                has_stoppage_reasons: boolean;
+                note?: string;
+                /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
+                ignored_params?: string[];
+            };
+        };
+        /** @description `totals` is empty (and `meta.note` says why) when positions were not tracked or the bout is not settled yet; 404 only for an unknown fight. */
+        FightPositionsResponse: {
+            data: components["schemas"]["FightPositions"];
+            meta: {
+                fight_id: number;
+                /** @description Always `ufc-official`. */
+                source: string;
+                /** @description true once every line is the official post-fight figure; null when there are no lines. */
+                official: boolean | null;
+                note: string;
+                /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
+                ignored_params?: string[];
+            };
+        };
         JudgesPageResponse: {
             data: components["schemas"]["Judge"][];
             meta: {
@@ -11972,6 +13458,37 @@ export interface components {
             meta: {
                 /** @description true when the career exceeds 500 rated bouts (the OLDEST are dropped). */
                 truncated: boolean;
+                /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
+                ignored_params?: string[];
+            };
+        };
+        /** @description `data` is null (and `meta.note` says why) under 3 tracked bouts with no recorded foul. */
+        FighterDisciplineResponse: {
+            data: components["schemas"]["FighterDiscipline"] | null;
+            meta: {
+                fighter_id: number;
+                /** @description Always `ufc-official`. */
+                source: string;
+                /**
+                 * Format: date
+                 * @description First card whose stoppages carry a reason (2018-12-08); earlier bouts are not counted.
+                 */
+                coverage_since: string;
+                /** @description The weight class the tracked bouts were most often fought at. */
+                weight_class: string | null;
+                note: string;
+                /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
+                ignored_params?: string[];
+            };
+        };
+        /** @description `data` is null (and `meta.note` says why) under 3 bouts with tracked positions. */
+        FighterPositionsResponse: {
+            data: components["schemas"]["FighterPositions"] | null;
+            meta: {
+                fighter_id: number;
+                /** @description Always `ufc-official`. */
+                source: string;
+                note: string;
                 /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
                 ignored_params?: string[];
             };
