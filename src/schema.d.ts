@@ -1549,7 +1549,7 @@ export interface paths {
         };
         /**
          * Consensus odds for one card
-         * @description The UFCalendar consensus line for every non-cancelled bout on one card, in card order: `fights[]`, each with `fight_id`, `status`, both corners (`fighter_a`, `fighter_b`: `id`, `slug`, `name`), `consensus` (the latest point; the closing line once the bout is settled), `opening` (the first point we recorded), `closing` (settled bouts only: the last point at or before the event start), `movement` (opening → consensus in implied-probability points on corner a, with the `direction` the market moved), `points` and `updated_at`. Every point is `a` / `b` (`american`, `decimal`, raw `implied_probability`), `favourite`, `fair_probability_a` (margin removed), `sources` (how many sportsbooks backed it) and `recorded_at`. A bout nobody has priced stays on the list with nulls and `points: 0`; `meta.priced` / `meta.unpriced` count both. `meta.checked_at` is when we last checked the market, whether or not the line moved. Consensus is the mean across the sportsbooks we track, refreshed every 30 minutes in the 48 hours before a card and every 2 hours otherwise; book identities are never exposed. Each bout also carries `props` — method of victory per corner, total rounds over/under per line and goes the distance (`FightProps`, or null), described on `/v1/fights/{id}/odds`. Information only, not betting advice. An unknown event 404s.
+         * @description The UFCalendar consensus line for every non-cancelled bout on one card, in card order: `fights[]`, each with `fight_id`, `status`, both corners (`fighter_a`, `fighter_b`: `id`, `slug`, `name`), `consensus` (the latest point; the closing line once the bout is settled), `opening` (the first point we recorded; on a settled bout from the archive that stores only its closing point, the mean of each sportsbook's own opening price with `recorded_at: null`), `closing` (settled bouts only: the last point at or before the start of the bout's own card section, or the event start when that time is not known), `movement` (opening → consensus in implied-probability points on corner a, with the `direction` the market moved), `points` and `updated_at`. Every point is `a` / `b` (`american`, `decimal`, raw `implied_probability`), `favourite`, `fair_probability_a` (margin removed), `sources` (how many sportsbooks backed it) and `recorded_at`. A bout nobody has priced stays on the list with nulls and `points: 0`; `meta.priced` / `meta.unpriced` count both. `meta.checked_at` is when we last checked the market, whether or not the line moved. Consensus is the mean across the sportsbooks we track, refreshed every 30 minutes in the 48 hours before a card and every 2 hours otherwise; book identities are never exposed. Each bout also carries `props` — method of victory per corner, total rounds over/under per line and goes the distance (`FightProps`, or null), described on `/v1/fights/{id}/odds`. Information only, not betting advice. An unknown event 404s.
          */
         get: {
             parameters: {
@@ -2852,9 +2852,9 @@ export interface paths {
         };
         /**
          * Consensus odds for one bout
-         * @description The UFCalendar consensus line for one bout: `consensus` (the latest point; the closing line once the bout is settled), `opening` (the first point we recorded), `closing` (settled bouts only, `completed` or `no_contest`: the last point at or before the event start; null until then), `movement` (opening → consensus: `delta_points_a` in implied-probability points on corner a, `direction` = the corner the market moved toward, `since`), `points` (stored points) and `updated_at` (when the line last moved). Every point is `a` / `b` (`american`, `decimal`, raw `implied_probability`), `favourite`, `fair_probability_a` (margin removed) and `sources` (how many sportsbooks backed it). Consensus is the mean across the sportsbooks we track, in decimal space; book identities are never exposed. `meta.checked_at` is when we last checked the market, whether or not the line moved; `meta.history` is the movement series (Pro+). A bout nobody priced answers 200 with nulls and `points: 0`; 404 is reserved for an unknown fight.
+         * @description The UFCalendar consensus line for one bout: `consensus` (the latest point; the closing line once the bout is settled), `opening` (the first point we recorded; on a settled bout from the archive that stores only its closing point, the mean of each sportsbook's own opening price with `recorded_at: null`), `closing` (settled bouts only, `completed` or `no_contest`: the last point at or before the start of the bout's own card section (main card, prelims or early prelims), or the event start when that time is not known; null until then), `movement` (opening → consensus: `delta_points_a` in implied-probability points on corner a, `direction` = the corner the market moved toward, `since`), `points` (stored points) and `updated_at` (when the line last moved). Every point is `a` / `b` (`american`, `decimal`, raw `implied_probability`), `favourite`, `fair_probability_a` (margin removed) and `sources` (how many sportsbooks backed it). Consensus is the mean across the sportsbooks we track, in decimal space; book identities are never exposed. `meta.checked_at` is when we last checked the market, whether or not the line moved; `meta.history` is the movement series (Pro+). A bout nobody priced answers 200 with nulls and `points: 0`; 404 is reserved for an unknown fight.
          *
-         *     `props` carries the prop markets (`FightProps`, or null when no sportsbooks price them): `method` (per corner `a` / `b`: `ko`, `sub`, `dec` — each `yes` / `no` prices, `fair_probability` = its share of all six outcomes when all six are priced, `sources`), `total_rounds` (over/under per rounds line, ascending) and `distance` (goes the distance yes / no). Same consensus rule as the moneyline (the sportsbook mean; prediction markets excluded, a book far from the rest dropped, two sportsbooks minimum); prices are recorded until the event starts, so a settled bout carries its closing props (`closing: true`). Books post props in fight week. Information only, not betting advice.
+         *     `props` carries the prop markets (`FightProps`, or null when no sportsbooks price them): `method` (per corner `a` / `b`: `ko`, `sub`, `dec` — each `yes` / `no` prices, `fair_probability` = its share of all six outcomes when all six are priced, `sources`), `total_rounds` (over/under per rounds line, ascending) and `distance` (goes the distance yes / no). Same consensus rule as the moneyline (the sportsbook mean; prediction markets excluded, a book far from the rest dropped, two sportsbooks minimum); prices are recorded until the bout's own card section starts, so a settled bout carries its closing props (`closing: true`). Props for 2021-2025 were backfilled as one closing consensus per market, with `recorded_at` set to the event start: that time is approximate, not when the price was observed. Books post props in fight week. Information only, not betting advice.
          */
         get: {
             parameters: {
@@ -12687,9 +12687,9 @@ export interface components {
             sources: number;
             /**
              * Format: date-time
-             * @description When this consensus point was recorded.
+             * @description When this consensus point was recorded. Null only on an `opening` from the archive before point-by-point tracking, where the time the line opened was never recorded.
              */
-            recorded_at: string;
+            recorded_at: string | null;
         };
         OddsMovement: {
             /** @description Implied-probability points on corner a, opening → consensus (2 places). Positive = the market moved toward a. */
@@ -12701,9 +12701,9 @@ export interface components {
             direction: "a" | "b" | null;
             /**
              * Format: date-time
-             * @description When the opening point was recorded.
+             * @description When the opening point was recorded; null when the opening comes from the archive and its time is unknown.
              */
-            since: string;
+            since: string | null;
         };
         /** @description One prop market's consensus price: the mean, in decimal space, across the sportsbooks we track, converted back to American. */
         PropLine: {
@@ -12741,7 +12741,7 @@ export interface components {
             /** @description This corner wins by decision. */
             dec: components["schemas"]["PropLine"] | null;
         };
-        /** @description Prop-market consensus for one bout. Prediction markets and exchanges are excluded and a book far from the rest is dropped; a market needs at least two sportsbooks. Prices are recorded until the event starts. Information only, not betting advice. */
+        /** @description Prop-market consensus for one bout. Prediction markets and exchanges are excluded and a book far from the rest is dropped; a market needs at least two sportsbooks. Prices are recorded until the bout's own card section starts (the event start when that time is not known). Props for 2021-2025 were backfilled as one closing consensus per market (three sportsbooks minimum), stamped at the event start: treat that time as approximate. Information only, not betting advice. */
         FightProps: {
             /** @description Method of victory per corner (oriented to the bout's `fighter_a` / `fighter_b`). */
             method: {
@@ -12752,7 +12752,7 @@ export interface components {
             total_rounds: components["schemas"]["PropTotalRounds"][];
             /** @description The fight goes the distance (yes) or ends inside it (no). */
             distance: components["schemas"]["PropLine"] | null;
-            /** @description True once the bout is settled: every price is the last one before the event start. */
+            /** @description True once the bout is settled: every price is the closing price. On bouts recorded live (2026 onward) that is the last price before the bout's own card section started, with its real timestamp; on bouts from 2021-2025 it was backfilled, and `recorded_at` is the event start, not the moment the price was observed. */
             closing: boolean;
             /**
              * Format: date-time
@@ -12784,9 +12784,9 @@ export interface components {
             } | null;
             /** @description The current consensus line: the latest point while the bout is upcoming, the closing line once it is settled (a finished bout never reports a post-bell price). Null when the bout was never priced. */
             consensus: components["schemas"]["OddsPair"] | null;
-            /** @description The first consensus point we recorded. */
+            /** @description The opening line. On a bout tracked point by point: the first consensus point we recorded. On a settled bout from the archive that stores only its closing point (`points: 1`): the mean of each sportsbook's own opening price, with `recorded_at: null` because that time was never recorded. */
             opening: components["schemas"]["OddsPair"] | null;
-            /** @description Settled bouts only (`completed` / `no_contest`): the last point at or before the event start. Null until then. */
+            /** @description Settled bouts only (`completed` / `no_contest`): the last point at or before the start of the bout's own card section (main card, prelims or early prelims; the event start when that time is not known). Null until then. */
             closing: components["schemas"]["OddsPair"] | null;
             movement: components["schemas"]["OddsMovement"] | null;
             /** @description Stored consensus points (0 = never priced). The full series is `/v1/fights/{id}/odds/history` (Pro+). */
@@ -12815,9 +12815,9 @@ export interface components {
             } | null;
             /** @description The current consensus line: the latest point while the bout is upcoming, the closing line once it is settled (a finished bout never reports a post-bell price). Null when the bout was never priced. */
             consensus: components["schemas"]["OddsPair"] | null;
-            /** @description The first consensus point we recorded. */
+            /** @description The opening line. On a bout tracked point by point: the first consensus point we recorded. On a settled bout from the archive that stores only its closing point (`points: 1`): the mean of each sportsbook's own opening price, with `recorded_at: null` because that time was never recorded. */
             opening: components["schemas"]["OddsPair"] | null;
-            /** @description Settled bouts only (`completed` / `no_contest`): the last point at or before the event start. Null until then. */
+            /** @description Settled bouts only (`completed` / `no_contest`): the last point at or before the start of the bout's own card section (main card, prelims or early prelims; the event start when that time is not known). Null until then. */
             closing: components["schemas"]["OddsPair"] | null;
             movement: components["schemas"]["OddsMovement"] | null;
             /** @description Stored consensus points (0 = never priced). The full series is `/v1/fights/{id}/odds/history` (Pro+). */
@@ -12852,9 +12852,9 @@ export interface components {
             sources: number;
             /**
              * Format: date-time
-             * @description When this consensus point was recorded.
+             * @description When this consensus point was recorded. Null only on an `opening` from the archive before point-by-point tracking, where the time the line opened was never recorded.
              */
-            recorded_at: string;
+            recorded_at: string | null;
         };
         /** @description A per-event change entry plus its event (`/v1/changes`). */
         ChangeFeedEntry: {
