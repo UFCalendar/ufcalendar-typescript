@@ -362,7 +362,7 @@ export interface paths {
                     /** @description Launch org slug. */
                     slug: "ufc" | "pfl" | "oktagon" | "bkfc" | "rizin";
                     /** @description Division slug. */
-                    division: "strawweight" | "flyweight" | "bantamweight" | "featherweight" | "lightweight" | "welterweight" | "super-welterweight" | "middleweight" | "light-heavyweight" | "heavyweight" | "super-heavyweight" | "womens-strawweight" | "womens-flyweight" | "womens-bantamweight" | "womens-featherweight" | "atomweight" | "ironweight";
+                    division: "strawweight" | "flyweight" | "bantamweight" | "featherweight" | "lightweight" | "welterweight" | "super-welterweight" | "middleweight" | "light-heavyweight" | "cruiserweight" | "heavyweight" | "super-heavyweight" | "womens-strawweight" | "womens-flyweight" | "womens-bantamweight" | "womens-featherweight" | "atomweight" | "ironweight";
                 };
                 cookie?: never;
             };
@@ -2642,7 +2642,7 @@ export interface paths {
         };
         /**
          * Judges' scorecards for a bout
-         * @description The official athletic-commission record: every judge, their score for each round, their card total, the decision type and any point deductions. UFC back to 1995, PFL to 2018, OKTAGON to 2025, RIZIN 2019–2022 and from March 2026 (Japan has no athletic commission — the record is the one published by the officials body that judges RIZIN; before March 2026 RIZIN judged each fight as a whole, so those cards carry each judge's total for the fight and no rounds, and 2023–2025 was not published). UFC cards are cross-checked against the official scorecards ufc.com publishes (Dana White's Contender Series and Road to UFC included, from March 2022), which also fill bouts the commission record does not cover. `source` says who published the cards: `commission-record`, `ufc-official-cards`, or a promotion's own slug (`oktagon-official`, `pfl-official`, `aca-official`).
+         * @description The official athletic-commission record: every judge, their score for each round, their card total, the decision type and any point deductions. UFC back to 1995, PFL to 2018, OKTAGON to 2025, RIZIN 2019–2022 and from March 2026 (Japan has no athletic commission — the record is the one published by the officials body that judges RIZIN; before March 2026 RIZIN judged each fight as a whole, so those cards carry each judge's total for the fight and no rounds, and 2023–2025 was not published). UFC cards are cross-checked against the official scorecards ufc.com publishes (Dana White's Contender Series and Road to UFC included, from March 2022), which also fill bouts the commission record does not cover. `source` says who published the cards: `commission-record`, `ufc-official-cards`, or a promotion's own slug (`oktagon-official`, `pfl-official`, `aca-official`). The panel is assembled judge by judge: when one record is missing a judge another record holds, that judge's card is filled from it, and `source` names the publisher of most of the panel.
          *
          *     `total_a`/`total_b` and every round are oriented to the bout's `fighter_a_id`/`fighter_b_id`, which are repeated on the payload so you never have to fetch the fight to read a card. `winner_fighter_id` is who THAT judge gave it to.
          *
@@ -8207,7 +8207,7 @@ export interface paths {
                     /** @description Board metric slug. */
                     metric: "total_fights" | "wins" | "decision_wins" | "title_fight_wins" | "bonuses" | "finishes" | "win_streak" | "total_fight_seconds" | "avg_fight_seconds_short" | "avg_fight_seconds_long" | "control_time_sec" | "control_time_pct" | "sig_strikes_landed" | "total_strikes_landed" | "slpm" | "sapm" | "striking_differential" | "sig_strike_accuracy" | "sig_strike_defense" | "knockdowns" | "knockdowns_per_15" | "knockouts" | "takedowns_landed" | "td_avg" | "takedown_accuracy" | "takedown_defense" | "submission_attempts" | "sub_avg_per_15" | "submissions" | "fastest_finish" | "fastest_knockout" | "fastest_submission" | "longest_fight_seconds" | "most_sig_strikes_fight" | "most_takedowns_fight" | "most_knockdowns_fight" | "longest_control_fight" | "most_sig_strikes_round" | "most_takedowns_round" | "most_knockdowns_round" | "fouls_committed" | "eye_pokes_committed" | "low_blows_committed" | "fouls_drawn" | "fouls_per_15" | "most_fouls_fight" | "longest_foul_stoppage_fight" | "most_fouls_event" | "most_finishes_event" | "most_knockouts_event" | "shortest_card_seconds" | "finish_rate" | "ko_rate" | "sub_rate" | "decision_rate" | "avg_fight_seconds" | "fouls_per_15_division";
                     /** @description One weight class. */
-                    division?: "strawweight" | "flyweight" | "bantamweight" | "featherweight" | "lightweight" | "welterweight" | "super-welterweight" | "middleweight" | "light-heavyweight" | "heavyweight" | "super-heavyweight" | "womens-strawweight" | "womens-flyweight" | "womens-bantamweight" | "womens-featherweight" | "atomweight" | "ironweight";
+                    division?: "strawweight" | "flyweight" | "bantamweight" | "featherweight" | "lightweight" | "welterweight" | "super-welterweight" | "middleweight" | "light-heavyweight" | "cruiserweight" | "heavyweight" | "super-heavyweight" | "womens-strawweight" | "womens-flyweight" | "womens-bantamweight" | "womens-featherweight" | "atomweight" | "ironweight";
                     /** @description `active` = fighters with a bout in the last ~18 months. */
                     population?: "all" | "active";
                     /** @description ISO-3166 alpha-2 nationality; population `all` only. */
@@ -8387,7 +8387,7 @@ export interface paths {
                     /** @description Launch org slug (required): `ufc`, `pfl`, `oktagon`, `bkfc` or `rizin`. */
                     org: "ufc" | "pfl" | "oktagon" | "bkfc" | "rizin";
                     /** @description One weight class. */
-                    division?: "strawweight" | "flyweight" | "bantamweight" | "featherweight" | "lightweight" | "welterweight" | "super-welterweight" | "middleweight" | "light-heavyweight" | "heavyweight" | "super-heavyweight" | "womens-strawweight" | "womens-flyweight" | "womens-bantamweight" | "womens-featherweight" | "atomweight" | "ironweight";
+                    division?: "strawweight" | "flyweight" | "bantamweight" | "featherweight" | "lightweight" | "welterweight" | "super-welterweight" | "middleweight" | "light-heavyweight" | "cruiserweight" | "heavyweight" | "super-heavyweight" | "womens-strawweight" | "womens-flyweight" | "womens-bantamweight" | "womens-featherweight" | "atomweight" | "ironweight";
                     population?: "all" | "active";
                     /** @description ISO-3166 alpha-2 nationality; population `all` only. */
                     country?: string;
@@ -12152,7 +12152,7 @@ export interface components {
                  * @description API division slug.
                  * @enum {string}
                  */
-                slug: "strawweight" | "flyweight" | "bantamweight" | "featherweight" | "lightweight" | "welterweight" | "super-welterweight" | "middleweight" | "light-heavyweight" | "heavyweight" | "super-heavyweight" | "womens-strawweight" | "womens-flyweight" | "womens-bantamweight" | "womens-featherweight" | "atomweight" | "ironweight";
+                slug: "strawweight" | "flyweight" | "bantamweight" | "featherweight" | "lightweight" | "welterweight" | "super-welterweight" | "middleweight" | "light-heavyweight" | "cruiserweight" | "heavyweight" | "super-heavyweight" | "womens-strawweight" | "womens-flyweight" | "womens-bantamweight" | "womens-featherweight" | "atomweight" | "ironweight";
                 /** @description Canonical weight-class name. */
                 name: string;
                 /** @description Null where no standard limit applies. */

@@ -191,7 +191,7 @@ non-`GET` request (webhook endpoint create / delete / rotate) throw `FightAPIErr
 - Fighter `images` are Wikimedia Commons / Creative Commons files: displaying the `license` and `artist` fields as a credit is a licence requirement, not a style preference.
 - Scorecards are the official commission record. Media-member and fan scorecards are not part of the API.
 - `source` / `source_slug` values (typed as `PublicSource`) name official publishers only — `ufc-stats`, `ufc-official`, `ufc-official-cards`, a promotion's `*-official`, `wikipedia`, `ufcalendar`. Every other publisher arrives as `public-records` (career records, history rows) or `commission-record` (judges' scorecards).
-- Not affiliated with UFC, Zuffa, TKO or any promotion. Terms: <https://www.ufcalendar.com/developers/terms>
+- UFCalendar is an independent data aggregator, not affiliated with, endorsed by or licensed by UFC, Zuffa, TKO or any promotion. Data is compiled from publicly accessible sources and is not an official or rights-cleared feed. Terms: <https://www.ufcalendar.com/developers/terms>
 
 Full reference: <https://api.ufcalendar.com/docs> · OpenAPI 3.1: <https://api.ufcalendar.com/openapi.json> · Also on [PyPI (Python client)](https://pypi.org/project/ufcalendar/), [RapidAPI Hub](https://rapidapi.com/ceo-SP8r6F1JT/api/ufc-and-mma-fight-data-by-ufcalendar), [Postman](https://www.postman.com/ceo-5d84eedc/workspace/ufcalendar-fight-api) and the [hosted MCP server](https://github.com/UFCalendar/ufcalendar-mcp)
 
