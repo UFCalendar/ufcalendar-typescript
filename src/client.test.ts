@@ -326,8 +326,8 @@ describe('power index, predictions, judges, events enrichments', () => {
   it('eventWatch() passes country and returns the grid', async () => {
     const { calls, fetchImpl } = stub([{ body: { data: { series: 'dwcs', countries: [{ country: 'WORLD', providers: [] }] } } }]);
     const api = new FightAPI({ apiKey: 'k', fetch: fetchImpl });
-    const w = await api.eventWatch('ufc-2025-08-26', { country: 'GB' });
-    assert.equal(calls[0]!.url.pathname, '/v1/events/ufc-2025-08-26/watch');
+    const w = await api.eventWatch('ufc-dwcs-79-2025-08-26', { country: 'GB' });
+    assert.equal(calls[0]!.url.pathname, '/v1/events/ufc-dwcs-79-2025-08-26/watch');
     assert.equal(calls[0]!.url.searchParams.get('country'), 'GB');
     assert.equal(w.series, 'dwcs');
   });
@@ -518,6 +518,32 @@ describe('power index, predictions, judges, events enrichments', () => {
     const nxt = await api.whosNext('islam-makhachev');
     assert.equal(calls[1]!.url.pathname, '/v1/matchmaker/next/islam-makhachev');
     assert.equal(nxt.suggestions[0]!.score, 88);
+  });
+
+  it('fighters({ rosterStatus }) maps to roster_status; roster() and rosterMoves() page', async () => {
+    const { calls, fetchImpl } = stub([
+      { body: { data: [{ id: 346, roster: [{ org: 'ufc', status: 'off_roster', since: null, checked_at: null }] }], meta: { pagination: { next_cursor: null, has_more: false } } } },
+      { body: { data: [{ fighter: { id: 1 } }], meta: { pagination: { next_cursor: 'C2', has_more: true } } } },
+      { body: { data: [{ fighter: { id: 2 } }], meta: { pagination: { next_cursor: null, has_more: false } } } },
+      { body: { data: [{ id: 14, kind: 'left' }], meta: { pagination: { next_cursor: null, has_more: false } } } },
+    ]);
+    const api = new FightAPI({ apiKey: 'k', fetch: fetchImpl });
+    const statuses: string[] = [];
+    for await (const f of api.fighters({ org: 'ufc', rosterStatus: 'off_roster' })) statuses.push(f.roster[0]!.status);
+    assert.deepEqual(statuses, ['off_roster']);
+    assert.equal(calls[0]!.url.searchParams.get('roster_status'), 'off_roster');
+    assert.equal(calls[0]!.url.searchParams.get('org'), 'ufc');
+    const ids: number[] = [];
+    for await (const r of api.roster('ufc', { division: 'featherweight' })) ids.push(r.fighter.id);
+    assert.deepEqual(ids, [1, 2]);
+    assert.equal(calls[1]!.url.pathname, '/v1/rosters/ufc');
+    assert.equal(calls[1]!.url.searchParams.get('division'), 'featherweight');
+    assert.equal(calls[2]!.url.searchParams.get('cursor'), 'C2');
+    const kinds: string[] = [];
+    for await (const m of api.rosterMoves('ufc', { kind: 'left', since: '2026-11-01' })) kinds.push(m.kind);
+    assert.deepEqual(kinds, ['left']);
+    assert.equal(calls[3]!.url.pathname, '/v1/rosters/ufc/moves');
+    assert.equal(calls[3]!.url.searchParams.get('since'), '2026-11-01');
   });
 
   it('changes() pages the cross-event feed', async () => {

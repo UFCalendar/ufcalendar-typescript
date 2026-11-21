@@ -20,6 +20,10 @@
  */
 import { VERSION } from './version';
 import type {
+  RosterMove,
+  RosterMoveKind,
+  RosterRow,
+  RosterStatus,
   Article,
   FightPositions,
   FightStatLine,
@@ -707,11 +711,18 @@ export class FightAPI {
 
   /* ------------------------------------------------------------ fighters */
 
+  /**
+   * Roster search. Every row carries `roster`: the promotion's own published
+   * roster status (`active`, `off_roster` = no longer listed, `retired`).
+   * `rosterStatus` keeps one status and needs `org: 'ufc'` (the promotion
+   * that publishes its roster); without it the API answers 400
+   * `invalid_filter`.
+   */
   fighters(
-    opts: { q?: string; org?: string; country?: string; limit?: number } = {},
+    opts: { q?: string; org?: string; country?: string; rosterStatus?: RosterStatus; limit?: number } = {},
   ): AsyncGenerator<FighterSummary, void, void> {
-    const { limit, ...params } = opts;
-    return this.#paginate<FighterSummary>('fighters', params as Query, { limit });
+    const { limit, rosterStatus, ...params } = opts;
+    return this.#paginate<FighterSummary>('fighters', { ...params, roster_status: rosterStatus } as Query, { limit });
   }
 
   /**
@@ -831,6 +842,37 @@ export class FightAPI {
       days: opts.days,
       limit: opts.limit,
     });
+  }
+
+  /* ------------------------------------------------------------- rosters */
+
+  /**
+   * A promotion's roster as published by the promotion (Pro plans and up):
+   * `status` `active` (default), `off_roster` or `retired`, `division` one
+   * division slug. Each row carries the fighter, `roster` (status, `since`,
+   * `checked_at`, `division`), `last_fight` and `next_fight`. Walks every page.
+   */
+  roster(
+    org = 'ufc',
+    opts: { status?: RosterStatus; division?: string; limit?: number } = {},
+  ): AsyncGenerator<RosterRow, void, void> {
+    const { limit, ...params } = opts;
+    return this.#paginate<RosterRow>(`rosters/${encodeURIComponent(org)}`, params as Query, { limit });
+  }
+
+  /**
+   * Confirmed roster moves as published by the promotion, newest first (Pro
+   * plans and up): `signed`, `left`, `retired`, `returned`, each dated by the
+   * window it happened in. `since` / `until` are `YYYY-MM-DD` (UTC) or
+   * ISO-8601; `fighter` is a slug or id. The `roster.changed` webhook
+   * delivers the same object.
+   */
+  rosterMoves(
+    org = 'ufc',
+    opts: { since?: string; until?: string; kind?: RosterMoveKind; fighter?: string | number; limit?: number } = {},
+  ): AsyncGenerator<RosterMove, void, void> {
+    const { limit, ...params } = opts;
+    return this.#paginate<RosterMove>(`rosters/${encodeURIComponent(org)}/moves`, params as Query, { limit });
   }
 
   /* ---------------------------------------------------------- matchmaker */
@@ -995,7 +1037,8 @@ export class FightAPI {
    * Register a signed webhook (Pro and up). `events` ⊆ `event.announced`,
    * `fight.result`, `card.changed`, `event.completed`, `odds.moved` (the
    * consensus line on an upcoming bout moved 5+ implied-probability points or
-   * the favourite flipped). The signing secret is returned ONCE, in this
+   * the favourite flipped), `roster.changed` (a confirmed UFC roster move,
+   * `data` = a `RosterMove`). The signing secret is returned ONCE, in this
    * response.
    */
   async createWebhookEndpoint(url: string, events?: string[]): Promise<WebhookEndpoint> {

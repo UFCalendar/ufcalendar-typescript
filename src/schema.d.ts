@@ -164,7 +164,8 @@ export interface paths {
                          *             "broadcasts": true,
                          *             "predictions": true,
                          *             "scorecards": true,
-                         *             "odds": true
+                         *             "odds": true,
+                         *             "roster": true
                          *           }
                          *         }
                          *       ],
@@ -1028,7 +1029,7 @@ export interface paths {
                          *       "data": {
                          *         "event": {
                          *           "id": 7602,
-                         *           "slug": "ufc-2025-08-26",
+                         *           "slug": "ufc-dwcs-79-2025-08-26",
                          *           "title": "DWCS 9.3",
                          *           "org": "ufc",
                          *           "starts_at": "2025-08-26T22:00:00.000Z",
@@ -5575,7 +5576,9 @@ export interface paths {
         };
         /**
          * Roster search
-         * @description Fighters with at least one launch-org fight (~4.5k). `q` is accent-insensitive. Rows are identity only (`FighterRef` plus `second_nationality`); `country_code` is ISO-2 derived from `nationality`. `country` accepts an ISO-2 code (matched against every name that maps to it) or a country name.
+         * @description Fighters with at least one launch-org fight (~4.5k). `q` is accent-insensitive. Rows are identity (`FighterRef` plus `second_nationality`) and `roster`; `country_code` is ISO-2 derived from `nationality`. `country` accepts an ISO-2 code (matched against every name that maps to it) or a country name.
+         *
+         *     `roster` is the promotion's own published roster status, one entry per promotion that publishes one (today the UFC): `status` is `active` (listed on its roster), `off_roster` (no longer listed — the promotion does not say why) or `retired`; `since` is when we first observed that status (null when it predates our first check — never an invented date) and `checked_at` when it was last confirmed. `[]` when the fighter is not on a published roster. `roster_status` (with `org=ufc`) keeps only fighters with that status; without `org`, or with a promotion that publishes no roster, it is 400 `invalid_filter`. Every plan.
          */
         get: {
             parameters: {
@@ -5585,6 +5588,8 @@ export interface paths {
                     org?: "ufc" | "pfl" | "oktagon" | "bkfc" | "rizin";
                     /** @description ISO-2 code (`US`, `GE`) or country name; matches either nationality. */
                     country?: string;
+                    /** @description Roster status as published by the promotion. Needs `org` set to a promotion that publishes its roster (`ufc`; see `capabilities.roster` on `/v1/orgs`). */
+                    roster_status?: "active" | "off_roster" | "retired";
                     /** @description Opaque cursor from `meta.pagination.next_cursor`. */
                     cursor?: string;
                     limit?: number;
@@ -5623,7 +5628,15 @@ export interface paths {
                          *           "nickname": "El Conquistador",
                          *           "nationality": "Georgia",
                          *           "country_code": "GE",
-                         *           "second_nationality": "Spain"
+                         *           "second_nationality": "Spain",
+                         *           "roster": [
+                         *             {
+                         *               "org": "ufc",
+                         *               "status": "active",
+                         *               "since": null,
+                         *               "checked_at": "2026-11-21T03:30:12.000Z"
+                         *             }
+                         *           ]
                          *         }
                          *       ],
                          *       "meta": {
@@ -5645,7 +5658,7 @@ export interface paths {
                     };
                     content?: never;
                 };
-                /** @description Invalid input (`invalid_org`, `invalid_cursor`). */
+                /** @description Invalid input (`invalid_org`, `invalid_cursor`, `invalid_status`, `invalid_filter`). */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -5720,6 +5733,8 @@ export interface paths {
          * Fighter profile
          * @description Bio, records, stats, UFCalendar Power Index summary, and CC-licensed images with attribution metadata (displaying the credit is a license requirement). **Read `records` and `stats`** (added 2026-09-24): `records` is a map keyed by a clean name — `pro_mma` (the career MMA record), `amateur_mma`, `pro_kickboxing`, …, and the org slug for a record INSIDE one promotion (`ufc`, `one`, `bkfc`) — each `{ value, source, scope }`; `stats` is ONE per-minute panel (SLpM, striking accuracy/defense, SApM, takedown average/accuracy/defense, submission average), always ONE sport (the fighter's headline sport: the `pro-mma` panel over MMA bouts in every promotion; `pro-knuckle` for a bare-knuckle fighter, `pro-muay-thai` / `pro-kickboxing` for a ONE striker; sports are never averaged together), with `basis: { bouts, orgs, source, scope }` stating exactly which bouts it averages over (e.g. 7 UFC bouts, or 18 MMA bouts across UFC + Oktagon); `null` when no real panel exists. `career_stats` is the raw per-source row list these are built from and stays unchanged for existing integrations.
          *
+         *     `roster` is the promotion's own published roster status (see `GET /v1/fighters`): `[{ org, status, since, checked_at }]`, `[]` when the fighter is on no published roster.
+         *
          *     `next_fight` is the fighter's next booked bout (not completed or cancelled, on an event that has not been cancelled and started no more than ~6h ago; `result` is always null) and `last_fight` their most recent completed or no-contest bout — both in the same shape as a `source: "native"` row of `/history`, or `null`.
          *
          *     `?include=bonuses` adds `bonuses`: the UFC post-fight bonus ledger — `counts` of Fight / Performance / KO / Submission of the Night (`fotn`, `potn`, `kotn`, `sotn`), their `total`, and the `fights` that earned them, newest first. Fight of the Night is credited to both corners, the other awards to the winner only. Award counts only, no dollar amounts.
@@ -5778,6 +5793,14 @@ export interface paths {
                          *         "dob": "1989-10-17",
                          *         "team": "Chute Boxe Diego Lima",
                          *         "birthplace": "Guarujá, Brazil",
+                         *         "roster": [
+                         *           {
+                         *             "org": "ufc",
+                         *             "status": "active",
+                         *             "since": null,
+                         *             "checked_at": "2026-11-21T03:30:12.000Z"
+                         *           }
+                         *         ],
                          *         "records": {
                          *           "pro_mma": {
                          *             "value": "37-11-0 (1 NC)",
@@ -6962,7 +6985,7 @@ export interface paths {
         };
         /**
          * Compare two fighters
-         * @description The tale of the tape in one call. `a` and `b` are fighter slugs or ids (a renamed slug is followed and named in `meta.resolved`); both are required and must differ (400 `invalid_query`), and each must be on the roster (404 `not_found`). Returns both bios (the `/v1/fighters/{idOrSlug}` bio fields plus `age`), `career_stats` (the `/v1/fighters/{idOrSlug}/stats` rows), `aggregates` per fighter over every completed bout with per-fight totals (`fights_analyzed`, average and best significant strikes and takedowns, average control time in seconds, and the strike mix: `location_pct` head/body/leg and `position_pct` distance/clinch/ground, whole percents, null when nothing was logged), `recent_form` (the last five settled entries of the merged multi-promotion timeline, `/v1/fighters/{idOrSlug}/history` rows), `win_streak`, `head_to_head` (their previous meetings, from `a`'s side), `common_opponents` (up to 5: the shared opponent with each fighter's most recent bout against them), `booked_bout` (the upcoming or live bout between them in a covered promotion, in its stored corner order, or null), `prediction` (UFCalendar model win probability for that booked bout, oriented to `a` — UFC only, served only while its corner stamp matches the bout, else null) and `power_index` (each fighter's UFCalendar Power Index rating, peak and fights rated, and `win_probability_a` from the two ratings). Model output is information, not betting advice.
+         * @description The tale of the tape in one call. `a` and `b` are fighter slugs or ids (a renamed slug is followed and named in `meta.resolved`); both are required and must differ (400 `invalid_query`), and each must be on the roster (404 `not_found`). Returns both bios (the `/v1/fighters/{idOrSlug}` bio fields plus `age` and `roster`), `career_stats` (the `/v1/fighters/{idOrSlug}/stats` rows), `aggregates` per fighter over every completed bout with per-fight totals (`fights_analyzed`, average and best significant strikes and takedowns, average control time in seconds, and the strike mix: `location_pct` head/body/leg and `position_pct` distance/clinch/ground, whole percents, null when nothing was logged), `recent_form` (the last five settled entries of the merged multi-promotion timeline, `/v1/fighters/{idOrSlug}/history` rows), `win_streak`, `head_to_head` (their previous meetings, from `a`'s side), `common_opponents` (up to 5: the shared opponent with each fighter's most recent bout against them), `booked_bout` (the upcoming or live bout between them in a covered promotion, in its stored corner order, or null), `prediction` (UFCalendar model win probability for that booked bout, oriented to `a` — UFC only, served only while its corner stamp matches the bout, else null) and `power_index` (each fighter's UFCalendar Power Index rating, peak and fights rated, and `win_probability_a` from the two ratings). Model output is information, not betting advice.
          */
         get: {
             parameters: {
@@ -7014,6 +7037,14 @@ export interface paths {
                          *           "dob": "1991-10-27",
                          *           "team": null,
                          *           "birthplace": null,
+                         *           "roster": [
+                         *             {
+                         *               "org": "ufc",
+                         *               "status": "active",
+                         *               "since": null,
+                         *               "checked_at": "2026-11-21T03:06:42.000Z"
+                         *             }
+                         *           ],
                          *           "age": 34
                          *         },
                          *         "b": {
@@ -7031,6 +7062,14 @@ export interface paths {
                          *           "dob": "1989-10-17",
                          *           "team": null,
                          *           "birthplace": null,
+                         *           "roster": [
+                         *             {
+                         *               "org": "ufc",
+                         *               "status": "active",
+                         *               "since": null,
+                         *               "checked_at": "2026-11-21T03:19:08.000Z"
+                         *             }
+                         *           ],
                          *           "age": 36
                          *         },
                          *         "career_stats": {
@@ -7692,7 +7731,7 @@ export interface paths {
          * Power Index board
          * @description The UFCalendar Power Index (our own rating engine, hourly refresh) for one org, in three views:
          *
-         *     - `current` (default): top-rated fighters whose latest bout was in this org.
+         *     - `current` (default): top-rated fighters whose latest bout was in this org. For a promotion that publishes its roster (UFC), a fighter it lists off its roster or retired is left out.
          *     - `peaks`: the highest ratings ever reached, keyed on the org where the peak was set.
          *     - `movers`: the biggest rating change over the last `days` (default 365), among fighters with at least two bouts in the window and five rated overall, whose latest bout in the window was in this org. Rows carry `start_rating`, `delta` and `fights_in_window` instead of peak fields.
          *
@@ -7791,6 +7830,339 @@ export interface paths {
                     };
                 };
                 /** @description No plan on the credential (`subscription_required`) — rare: every account with a key is on at least the free plan (100 requests/month, no card; keys at https://www.ufcalendar.com/account/api). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found (`not_found`; staged-org data 404s until the org is promoted). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rate limited (`rate_limited`) or monthly quota reached (`quota_exceeded`). Honor `Retry-After`. */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Something broke on our side (`internal_error`). It has been logged under the `request_id`. */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rosters/{org}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A promotion's current roster (Pro+)
+         * @description The roster as published by the promotion on its own athlete profiles, for the promotions that publish one (today the UFC; `capabilities.roster` on `/v1/orgs`). Requires a Pro or Business plan: a lower plan gets 403 `tier_required` (the `roster` field on fighter objects and `roster_status` on `/v1/fighters` are on every plan), answered before anything is looked up.
+         *
+         *     `status` picks the list: `active` (default, everyone the promotion lists on its roster — including long-idle contracted names), `off_roster` (no longer listed — the promotion does not say why) or `retired`. A fighter is on exactly one list: if two of the promotion's profiles map to one fighter, an active one wins. `division` narrows to one division slug (`featherweight`, `womens-strawweight`, …) as the promotion lists it. Each row: `fighter` (the `FighterRef`), `roster` (`status`, `since` = when we first observed it, null when it predates our first check; `checked_at` = when the promotion last confirmed it; `division`), `last_fight` (the latest settled bout in any launch promotion) and `next_fight` (the next booking, with `starts_at`), or null. Sorted by name; `meta.total` counts the whole list. Only fighters on the API roster are listed: a newly signed athlete appears once they have a bout or booking we track. An org that publishes no roster answers 404 `not_found`.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    status?: "active" | "off_roster" | "retired";
+                    /** @description Division slug, e.g. `featherweight`, `light-heavyweight`, `womens-strawweight`. */
+                    division?: string;
+                    /** @description Opaque cursor from `meta.pagination.next_cursor`. */
+                    cursor?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path: {
+                    /** @description A promotion that publishes its roster. */
+                    org: "ufc";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Roster rows, by name */
+                200: {
+                    headers: {
+                        /** @description Weak validator over the body, e.g. `W/"GKrimLo826WBqG27jbNFsW2ZHmA"`. Send it back as `If-None-Match` to get a 304. */
+                        ETag?: string;
+                        /** @description Always `private, no-cache`. */
+                        "Cache-Control"?: string;
+                        /** @description Monthly request quota of the plan. */
+                        "X-RateLimit-Limit"?: number;
+                        /** @description Requests left this month. */
+                        "X-RateLimit-Remaining"?: number;
+                        /** @description Unix seconds of the monthly reset. */
+                        "X-RateLimit-Reset"?: number;
+                        /** @description Quote it to support; the same id is in every error body. */
+                        "x-request-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "data": [
+                         *         {
+                         *           "fighter": {
+                         *             "id": 327,
+                         *             "slug": "alexander-volkanovski",
+                         *             "name": "Alexander Volkanovski",
+                         *             "nickname": "The Great",
+                         *             "nationality": "Australia",
+                         *             "country_code": "AU"
+                         *           },
+                         *           "roster": {
+                         *             "org": "ufc",
+                         *             "status": "active",
+                         *             "since": null,
+                         *             "checked_at": "2026-11-21T03:08:39.439Z",
+                         *             "division": "featherweight"
+                         *           },
+                         *           "last_fight": {
+                         *             "fight_id": 83679,
+                         *             "event_id": 2530,
+                         *             "event_slug": "ufc-333-2026-10-24",
+                         *             "event_title": "UFC 333: Volkanovski vs Evloev",
+                         *             "org": "ufc",
+                         *             "date": "2026-10-24"
+                         *           },
+                         *           "next_fight": null
+                         *         }
+                         *       ],
+                         *       "meta": {
+                         *         "org": "ufc",
+                         *         "status": "active",
+                         *         "division": "featherweight",
+                         *         "total": 92,
+                         *         "note": "Roster status as published by the promotion on its own athlete profiles. off_roster = the promotion no longer lists the fighter on its roster; it does not say why. since is null when the status predates our first check.",
+                         *         "pagination": {
+                         *           "next_cursor": "eyJpZCI6MX0",
+                         *           "has_more": true,
+                         *           "limit": 1
+                         *         }
+                         *       }
+                         *     }
+                         */
+                        "application/json": components["schemas"]["RosterResponse"];
+                    };
+                };
+                /** @description Not Modified — `If-None-Match` matched the current weak `ETag`. Empty body. */
+                304: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Invalid input (`invalid_status`, `invalid_division`, `invalid_cursor`). */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Missing/invalid API key (`unauthorized`). */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Requires a Pro or Business plan (`tier_required`). Answered before the promotion is looked up. The `roster` field and the `roster_status` filter on `/v1/fighters` are on every plan. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found (`not_found`; staged-org data 404s until the org is promoted). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rate limited (`rate_limited`) or monthly quota reached (`quota_exceeded`). Honor `Retry-After`. */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Something broke on our side (`internal_error`). It has been logged under the `request_id`. */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rosters/{org}/moves": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Roster moves: signings, departures, retirements (Pro+)
+         * @description Confirmed roster moves as published by the promotion, newest first: `signed` (newly listed as active), `left` (no longer listed on the roster — the promotion does not say why), `retired` and `returned` (listed as active again). Requires a Pro or Business plan: a lower plan gets 403 `tier_required` (the `roster` field on fighter objects and `roster_status` on `/v1/fighters` are on every plan), answered before anything is looked up.
+         *
+         *     A move is confirmed by two agreeing reads of the promotion's profile at least 6 hours apart, and dated by a window: it happened after `previous_checked_at` (the last read showing the old status) and at or before `observed_at` (the first read showing the new one). `backfilled` moves were reconstructed from archived profile pages rather than observed live. Narrow with `since` / `until` (on `observed_at`; a `YYYY-MM-DD` is a UTC day, `until` covering the whole day), `kind` and `fighter` (slug or id). Only fighters on the API roster are listed. The same object is delivered by the `roster.changed` webhook.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description `YYYY-MM-DD` (UTC) or ISO-8601 datetime: moves observed on or after it. */
+                    since?: string;
+                    /** @description `YYYY-MM-DD` (UTC, the whole day) or ISO-8601 datetime: moves observed on or before it. */
+                    until?: string;
+                    kind?: "signed" | "left" | "retired" | "returned";
+                    /** @description Only this fighter's moves: slug (preferred) or numeric id. 404 when the fighter does not exist; an empty list when he has no roster moves. */
+                    fighter?: string;
+                    /** @description Opaque cursor from `meta.pagination.next_cursor`. */
+                    cursor?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path: {
+                    /** @description A promotion that publishes its roster. */
+                    org: "ufc";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Moves, newest first */
+                200: {
+                    headers: {
+                        /** @description Weak validator over the body, e.g. `W/"GKrimLo826WBqG27jbNFsW2ZHmA"`. Send it back as `If-None-Match` to get a 304. */
+                        ETag?: string;
+                        /** @description Always `private, no-cache`. */
+                        "Cache-Control"?: string;
+                        /** @description Monthly request quota of the plan. */
+                        "X-RateLimit-Limit"?: number;
+                        /** @description Requests left this month. */
+                        "X-RateLimit-Remaining"?: number;
+                        /** @description Unix seconds of the monthly reset. */
+                        "X-RateLimit-Reset"?: number;
+                        /** @description Quote it to support; the same id is in every error body. */
+                        "x-request-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "data": [
+                         *         {
+                         *           "id": 14,
+                         *           "fighter": {
+                         *             "id": 1088,
+                         *             "slug": "pete-rodriguez",
+                         *             "name": "Pete Rodriguez",
+                         *             "nickname": "Dead Game",
+                         *             "nationality": "United States",
+                         *             "country_code": "US"
+                         *           },
+                         *           "org": "ufc",
+                         *           "kind": "left",
+                         *           "from_status": "active",
+                         *           "to_status": "off_roster",
+                         *           "observed_at": "2026-11-21T03:39:42.165Z",
+                         *           "previous_checked_at": "2026-08-10T17:10:50.725Z",
+                         *           "backfilled": true
+                         *         }
+                         *       ],
+                         *       "meta": {
+                         *         "org": "ufc",
+                         *         "since": null,
+                         *         "until": null,
+                         *         "kind": null,
+                         *         "fighter_id": null,
+                         *         "note": "Confirmed roster moves as published by the promotion: each happened between previous_checked_at (our last read showing the old status) and observed_at (the first read showing the new one). backfilled moves were reconstructed from archived profile pages.",
+                         *         "pagination": {
+                         *           "next_cursor": "eyJpZCI6MTR9",
+                         *           "has_more": true,
+                         *           "limit": 1
+                         *         }
+                         *       }
+                         *     }
+                         */
+                        "application/json": components["schemas"]["RosterMovesResponse"];
+                    };
+                };
+                /** @description Not Modified — `If-None-Match` matched the current weak `ETag`. Empty body. */
+                304: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Invalid input (`invalid_date`, `invalid_kind`, `invalid_cursor`). Dates must be real calendar days (`2026-02-30` is `invalid_date`). */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Missing/invalid API key (`unauthorized`). */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Requires a Pro or Business plan (`tier_required`). Answered before the promotion is looked up. The `roster` field and the `roster_status` filter on `/v1/fighters` are on every plan. */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -10106,7 +10478,7 @@ export interface paths {
         put?: never;
         /**
          * Register a webhook endpoint
-         * @description Pro+. Body: `{"url": "https://...", "events": ["event.announced", "fight.result", "card.changed", "event.completed", "odds.moved"]}`. Subscribe to `event.announced` and you do not need to poll `/v1/events` to discover new cards — it fires once, within a minute of a card first landing in our data, and carries the same event object the list endpoint returns. `fight.result` fires once per bout within a minute of the result, as `revision` 1, and again as the next revision (`corrected: true`, with the `previous` result) whenever the winner, method, round, time or status is corrected in the 72 h after it — upsert on `fight_id` and keep the highest `revision`. `odds.moved` fires when the UFCalendar consensus line on an upcoming bout moves at least 5 implied-probability points on corner a, or the favourite flips, measured against the last line we delivered for that bout (its opening line before the first delivery), so a slow drift arrives once, not per refresh: `data` is `{fight_id, event, fighter_a, fighter_b, odds: {consensus, opening, movement, updated_at}, previous, delta_points_a, direction, favourite_flipped, moved_at}`. Information only, not betting advice. The response contains the signing `secret` ONCE. Every delivery body is `{"id", "type", "data", "sent_at"}` (`WebhookDelivery` schema) — `id` is stable across retries, so deduplicate on it. Deliveries carry `X-UFCalendar-Signature: t=<unix>,v1=<hmac>` where the HMAC-SHA256 input is `"<t>.<rawBody>"`. **Verify the timestamp too**: reject anything where `|now - t|` exceeds 300 seconds, otherwise a captured delivery can be replayed at you forever with a valid HMAC. Delivery is at-least-once — expect a retry roughly every 60s until your endpoint returns 2xx. Endpoints auto-disable after 20 consecutive failures, and you may hold at most 3 active endpoints (409 `endpoint_limit`). Latency: results are dispatched within ~1 minute of the result being recorded. `event.announced` only fires for cards that have not started yet, and `fight.result` / `event.completed` only for cards that started in the last 7 days, so archive backfills never reach you as new-card or new-result noise. `card.changed` is filtered the same way: a change whose before and after read identically (a venue row re-minted for the same arena, a source dropping a sub-time it never knew) is never delivered, and when a source flip-flops a value we deliver the move and its undo once, not the twentieth repeat. Deliveries are free — they never count against your monthly request quota, only the calls you make to manage endpoints do.
+         * @description Pro+. Deliveries stop while the account is below Pro (a cancelled plan falls to the free plan); an endpoint keeps the event list it was created with, so to add a newer kind such as `roster.changed`, delete it and register it again. Body: `{"url": "https://...", "events": ["event.announced", "fight.result", "card.changed", "event.completed", "odds.moved", "roster.changed"]}`. Subscribe to `event.announced` and you do not need to poll `/v1/events` to discover new cards — it fires once, within a minute of a card first landing in our data, and carries the same event object the list endpoint returns. `fight.result` fires once per bout within a minute of the result, as `revision` 1, and again as the next revision (`corrected: true`, with the `previous` result) whenever the winner, method, round, time or status is corrected in the 72 h after it — upsert on `fight_id` and keep the highest `revision`. `odds.moved` fires when the UFCalendar consensus line on an upcoming bout moves at least 5 implied-probability points on corner a, or the favourite flips, measured against the last line we delivered for that bout (its opening line before the first delivery), so a slow drift arrives once, not per refresh: `data` is `{fight_id, event, fighter_a, fighter_b, odds: {consensus, opening, movement, updated_at}, previous, delta_points_a, direction, favourite_flipped, moved_at}`. Information only, not betting advice. `roster.changed` fires once per confirmed roster move of a promotion that publishes its roster (UFC): a signing, a departure (no longer listed on the roster), a retirement or a return, as published by the promotion; `data` is the `/v1/rosters/{org}/moves` row (`{id, fighter, org, kind, from_status, to_status, observed_at, previous_checked_at, backfilled}`). A move whose athlete reaches the API roster only later (a signing before the debut booking) is delivered when they do, within 30 days, with its original window; moves reconstructed from archives are never delivered. The response contains the signing `secret` ONCE. Every delivery body is `{"id", "type", "data", "sent_at"}` (`WebhookDelivery` schema) — `id` is stable across retries, so deduplicate on it. Deliveries carry `X-UFCalendar-Signature: t=<unix>,v1=<hmac>` where the HMAC-SHA256 input is `"<t>.<rawBody>"`. **Verify the timestamp too**: reject anything where `|now - t|` exceeds 300 seconds, otherwise a captured delivery can be replayed at you forever with a valid HMAC. Delivery is at-least-once — expect a retry roughly every 60s until your endpoint returns 2xx. Endpoints auto-disable after 20 consecutive failures, and you may hold at most 3 active endpoints (409 `endpoint_limit`). Latency: results are dispatched within ~1 minute of the result being recorded. `event.announced` only fires for cards that have not started yet, and `fight.result` / `event.completed` only for cards that started in the last 7 days, so archive backfills never reach you as new-card or new-result noise. `card.changed` is filtered the same way: a change whose before and after read identically (a venue row re-minted for the same arena, a source dropping a sub-time it never knew) is never delivered, and when a source flip-flops a value we deliver the move and its undo once, not the twentieth repeat. Deliveries are free — they never count against your monthly request quota, only the calls you make to manage endpoints do.
          */
         post: {
             parameters: {
@@ -10607,7 +10979,7 @@ export interface components {
          * @description Webhook event types.
          * @enum {string}
          */
-        WebhookKind: "event.announced" | "event.completed" | "fight.result" | "card.changed" | "odds.moved";
+        WebhookKind: "event.announced" | "event.completed" | "fight.result" | "card.changed" | "odds.moved" | "roster.changed";
         /**
          * @description What a card-change entry describes.
          * @enum {string}
@@ -10662,6 +11034,8 @@ export interface components {
             scorecards: boolean;
             /** @description UFCalendar consensus odds (`/v1/fights/{id}/odds`). */
             odds: boolean;
+            /** @description The promotion publishes an official roster status, mirrored as published: `roster` on fighter objects, `roster_status` on `/v1/fighters`, `/v1/rosters/{org}`. */
+            roster: boolean;
         };
         Org: {
             id: number;
@@ -11265,7 +11639,109 @@ export interface components {
             /** @description Newest first. */
             years: components["schemas"]["CoverageYear"][];
         };
-        /** @description Roster-search row: identity only (the bio lives on the detail route). */
+        /**
+         * @description The promotion's own published roster status: `active` = listed on its roster, `off_roster` = no longer listed (the promotion does not say why), `retired` = listed as retired.
+         * @enum {string}
+         */
+        RosterStatus: "active" | "off_roster" | "retired";
+        /** @description Roster status as published by the promotion. */
+        RosterEntry: {
+            /** @description A promotion that publishes its roster (`ufc`; `capabilities.roster` on `/v1/orgs`). */
+            org: string;
+            status: components["schemas"]["RosterStatus"];
+            /**
+             * Format: date-time
+             * @description When we first observed this status; null when it predates our first check (we never invent a date).
+             */
+            since: string | null;
+            /**
+             * Format: date-time
+             * @description When the promotion last confirmed this status.
+             */
+            checked_at: string | null;
+        };
+        RosterBout: {
+            fight_id: number;
+            event_id: number;
+            event_slug: string;
+            event_title: string;
+            /** @description Org slug of the bout (any launch promotion). */
+            org: string;
+            /**
+             * Format: date
+             * @description UTC calendar day of the event's first bell.
+             */
+            date: string | null;
+        };
+        RosterNextBout: {
+            fight_id: number;
+            event_id: number;
+            event_slug: string;
+            event_title: string;
+            /** @description Org slug of the bout (any launch promotion). */
+            org: string;
+            /**
+             * Format: date
+             * @description UTC calendar day of the event's first bell.
+             */
+            date: string | null;
+            /**
+             * Format: date-time
+             * @description First bell (UTC).
+             */
+            starts_at: string | null;
+        };
+        /** @description One fighter on a promotion's published roster, with the last bout and the next booking in any launch promotion. */
+        RosterRow: {
+            fighter: components["schemas"]["FighterRef"];
+            roster: {
+                org: string;
+                status: components["schemas"]["RosterStatus"];
+                /**
+                 * Format: date-time
+                 * @description When we first observed this status; null when it predates our first check.
+                 */
+                since: string | null;
+                /**
+                 * Format: date-time
+                 * @description When the promotion last confirmed it.
+                 */
+                checked_at: string | null;
+                /** @description Division slug as the promotion lists it (`featherweight`, `womens-strawweight`); null when it lists none. */
+                division: string | null;
+            };
+            last_fight: components["schemas"]["RosterBout"] | null;
+            next_fight: components["schemas"]["RosterNextBout"] | null;
+        };
+        /**
+         * @description `signed` = newly listed as active, `left` = no longer listed on the roster, `retired` = listed as retired, `returned` = listed as active again.
+         * @enum {string}
+         */
+        RosterMoveKind: "signed" | "left" | "retired" | "returned";
+        /** @description One confirmed roster move, as published by the promotion. */
+        RosterMove: {
+            /** @description Stable id of the move (the `roster.changed` delivery carries the same object). */
+            id: number;
+            fighter: components["schemas"]["FighterRef"];
+            org: string;
+            kind: components["schemas"]["RosterMoveKind"];
+            /** @description Null on a signing. */
+            from_status: components["schemas"]["RosterStatus"] | null;
+            to_status: components["schemas"]["RosterStatus"];
+            /**
+             * Format: date-time
+             * @description The first read showing the new status: the move happened at or before it.
+             */
+            observed_at: string;
+            /**
+             * Format: date-time
+             * @description The last read showing the old status: the move happened after it.
+             */
+            previous_checked_at: string | null;
+            /** @description true = reconstructed from archived profile pages, not observed live. */
+            backfilled: boolean;
+        };
+        /** @description Roster-search row: identity plus roster status (the bio lives on the detail route). */
         FighterListItem: {
             id: number;
             slug: string;
@@ -11277,6 +11753,8 @@ export interface components {
             country_code: string | null;
             /** @description A second nationality NAME when the source lists one. */
             second_nationality: string | null;
+            /** @description The promotion's own published roster status, one entry per promotion that publishes one; `[]` when none. */
+            roster: components["schemas"]["RosterEntry"][];
         };
         /** @description Structured twins of `value` are null when the string does not parse. */
         RecordEntry: {
@@ -11513,6 +11991,8 @@ export interface components {
             dob: string | null;
             team: string | null;
             birthplace: string | null;
+            /** @description The promotion's own published roster status; `[]` when none. */
+            roster: components["schemas"]["RosterEntry"][];
             /** @description Keyed `pro_mma`, `amateur_mma`, `pro_kickboxing`, … and the org slug (`ufc`, `one`, `bkfc`) for in-promotion records. */
             records: {
                 [key: string]: components["schemas"]["RecordEntry"];
@@ -11546,6 +12026,8 @@ export interface components {
             dob: string | null;
             team: string | null;
             birthplace: string | null;
+            /** @description The promotion's own published roster status; `[]` when none. */
+            roster: components["schemas"]["RosterEntry"][];
             /** @description Whole years from `dob`; null when unknown. */
             age: number | null;
         };
@@ -13090,7 +13572,7 @@ export interface components {
             /** @description Delivery id (stable across retries — deduplicate on it). */
             id: string;
             type: components["schemas"]["WebhookKind"];
-            /** @description `event.announced` / `event.completed`: `{event}` (the list-shape event); `fight.result`: the bout with `event`, `result`, `revision` and `corrected` — `revision` 1 is the first delivery; if the winner, method, round, time or status changes within 72 h of the result, the bout is re-sent as the next revision with `corrected: true` and the `previous` result it replaces (upsert on `fight_id`, keep the highest `revision`); `card.changed`: `{event, change}`; `odds.moved`: `{fight_id, event, fighter_a, fighter_b, odds: {consensus, opening, movement, updated_at}, previous, delta_points_a, direction, favourite_flipped, moved_at}` (UFCalendar consensus line, information only, not betting advice). */
+            /** @description `event.announced` / `event.completed`: `{event}` (the list-shape event); `fight.result`: the bout with `event`, `result`, `revision` and `corrected` — `revision` 1 is the first delivery; if the winner, method, round, time or status changes within 72 h of the result, the bout is re-sent as the next revision with `corrected: true` and the `previous` result it replaces (upsert on `fight_id`, keep the highest `revision`); `card.changed`: `{event, change}`; `odds.moved`: `{fight_id, event, fighter_a, fighter_b, odds: {consensus, opening, movement, updated_at}, previous, delta_points_a, direction, favourite_flipped, moved_at}` (UFCalendar consensus line, information only, not betting advice); `roster.changed`: one `RosterMove` (`{id, fighter, org, kind, from_status, to_status, observed_at, previous_checked_at, backfilled}`), as published by the promotion. */
             data: {
                 [key: string]: unknown;
             };
@@ -13387,6 +13869,48 @@ export interface components {
         FightersPageResponse: {
             data: components["schemas"]["FighterListItem"][];
             meta: {
+                pagination: components["schemas"]["Pagination"];
+                /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
+                ignored_params?: string[];
+            };
+        };
+        /** @description Sorted by name. */
+        RosterResponse: {
+            data: components["schemas"]["RosterRow"][];
+            meta: {
+                org: string;
+                status: components["schemas"]["RosterStatus"];
+                /** @description The `division=` filter applied. */
+                division: string | null;
+                /** @description Fighters on this list (all pages). */
+                total: number;
+                /** @description Always present: as published by the promotion. */
+                note: string;
+                pagination: components["schemas"]["Pagination"];
+                /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
+                ignored_params?: string[];
+            };
+        };
+        /** @description Newest first. */
+        RosterMovesResponse: {
+            data: components["schemas"]["RosterMove"][];
+            meta: {
+                org: string;
+                /**
+                 * Format: date-time
+                 * @description The `since=` bound applied.
+                 */
+                since: string | null;
+                /**
+                 * Format: date-time
+                 * @description The `until=` bound applied (a date covers the whole UTC day).
+                 */
+                until: string | null;
+                kind: components["schemas"]["RosterMoveKind"] | null;
+                /** @description The `fighter=` filter, resolved. */
+                fighter_id: number | null;
+                /** @description Always present: how a move is dated. */
+                note: string;
                 pagination: components["schemas"]["Pagination"];
                 /** @description Present only when the request carried query parameters this endpoint does not take — they were ignored. Same list as the `X-UFCalendar-Ignored-Params` header. Sorted, unique. */
                 ignored_params?: string[];

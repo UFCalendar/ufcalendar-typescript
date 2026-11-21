@@ -463,6 +463,59 @@ export interface FighterSummary {
   country_code: string | null;
   /** A second nationality when the source lists one (display name). */
   second_nationality: string | null;
+  /** The promotion's own published roster status, one entry per promotion
+   * that publishes one (UFC); `[]` when the fighter is on none. */
+  roster: RosterEntry[];
+}
+
+/* ── rosters (as published by the promotion) ───────────────────────── */
+
+/** `active` = listed on the promotion's roster, `off_roster` = no longer
+ * listed (the promotion does not say why), `retired` = listed as retired. */
+export type RosterStatus = 'active' | 'off_roster' | 'retired';
+
+export interface RosterEntry {
+  org: string;
+  status: RosterStatus;
+  /** When we first observed this status; null when it predates our first check. */
+  since: string | null;
+  /** When the promotion last confirmed it. */
+  checked_at: string | null;
+}
+
+export interface RosterBout {
+  fight_id: number;
+  event_id: number;
+  event_slug: string;
+  event_title: string;
+  org: string;
+  date: string | null;
+}
+
+/** One fighter on a promotion's published roster (`GET /v1/rosters/{org}`). */
+export interface RosterRow {
+  fighter: Omit<FighterSummary, 'second_nationality' | 'roster'>;
+  roster: RosterEntry & { division: string | null };
+  last_fight: RosterBout | null;
+  next_fight: (RosterBout & { starts_at: string | null }) | null;
+}
+
+export type RosterMoveKind = 'signed' | 'left' | 'retired' | 'returned';
+
+/** One confirmed roster move (`GET /v1/rosters/{org}/moves`, the
+ * `roster.changed` webhook's `data`). It happened after
+ * `previous_checked_at` and at or before `observed_at`. */
+export interface RosterMove {
+  id: number;
+  fighter: Omit<FighterSummary, 'second_nationality' | 'roster'>;
+  org: string;
+  kind: RosterMoveKind;
+  from_status: RosterStatus | null;
+  to_status: RosterStatus;
+  observed_at: string;
+  previous_checked_at: string | null;
+  /** Reconstructed from archived profile pages, not observed live. */
+  backfilled: boolean;
 }
 
 /** Wikimedia Commons / Creative Commons only. Rendering one WITHOUT the

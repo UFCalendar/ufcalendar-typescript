@@ -1,3 +1,3 @@
 /** Kept in lockstep with package.json and the User-Agent by
  * `apps/api/src/surfaces.test.ts`. Bump all three together. */
-export const VERSION = '0.10.2';
+export const VERSION = '0.11.0';
